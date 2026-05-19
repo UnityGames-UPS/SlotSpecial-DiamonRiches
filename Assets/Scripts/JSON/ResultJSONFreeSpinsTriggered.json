@@ -1,0 +1,316 @@
+{
+  "success": true,
+  "matrix": [
+    [
+      "4",
+      "7",
+      "3",
+      "8",
+      "6"
+    ],
+    [
+      "8",
+      "4",
+      "5",
+      "0",
+      "7"
+    ],
+    [
+      "0",
+      "8",
+      "5",
+      "6",
+      "1"
+    ],
+    [
+      "10",
+      "10",
+      "10",
+      "2",
+      "1"
+    ]
+  ],
+  "id": "ResultData",
+  "payload": {
+    "winAmount": 0.123,
+    "lineWins": [
+      {
+        "lineIndex": 3,
+        "positions": [
+          {
+            "position": [
+              3,
+              0
+            ]
+          },
+          {
+            "position": [
+              3,
+              1
+            ]
+          },
+          {
+            "position": [
+              3,
+              2
+            ]
+          },
+          {
+            "position": [
+              3,
+              3
+            ]
+          }
+        ],
+        "pattern": [
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        "symbolId": "2",
+        "symbolName": "K",
+        "payout": 0.025,
+        "matchCount": 4
+      },
+      {
+        "lineIndex": 7,
+        "positions": [
+          {
+            "position": [
+              1,
+              0
+            ]
+          },
+          {
+            "position": [
+              2,
+              1
+            ]
+          },
+          {
+            "position": [
+              3,
+              2
+            ]
+          }
+        ],
+        "pattern": [
+          1,
+          2,
+          3,
+          2,
+          1
+        ],
+        "symbolId": "8",
+        "symbolName": "Jewels",
+        "payout": 0.02,
+        "matchCount": 3
+      },
+      {
+        "lineIndex": 9,
+        "positions": [
+          {
+            "position": [
+              3,
+              0
+            ]
+          },
+          {
+            "position": [
+              2,
+              1
+            ]
+          },
+          {
+            "position": [
+              3,
+              2
+            ]
+          }
+        ],
+        "pattern": [
+          3,
+          2,
+          3,
+          2,
+          3
+        ],
+        "symbolId": "8",
+        "symbolName": "Jewels",
+        "payout": 0.02,
+        "matchCount": 3
+      },
+      {
+        "lineIndex": 17,
+        "positions": [
+          {
+            "position": [
+              2,
+              0
+            ]
+          },
+          {
+            "position": [
+              3,
+              1
+            ]
+          },
+          {
+            "position": [
+              3,
+              2
+            ]
+          }
+        ],
+        "pattern": [
+          2,
+          3,
+          3,
+          3,
+          2
+        ],
+        "symbolId": "0",
+        "symbolName": "J",
+        "payout": 0.008,
+        "matchCount": 3
+      },
+      {
+        "lineIndex": 21,
+        "positions": [
+          {
+            "position": [
+              3,
+              0
+            ]
+          },
+          {
+            "position": [
+              3,
+              1
+            ]
+          },
+          {
+            "position": [
+              2,
+              2
+            ]
+          }
+        ],
+        "pattern": [
+          3,
+          3,
+          2,
+          3,
+          3
+        ],
+        "symbolId": "5",
+        "symbolName": "Pomegranate",
+        "payout": 0.01,
+        "matchCount": 3
+      },
+      {
+        "lineIndex": 27,
+        "positions": [
+          {
+            "position": [
+              3,
+              0
+            ]
+          },
+          {
+            "position": [
+              3,
+              1
+            ]
+          },
+          {
+            "position": [
+              3,
+              2
+            ]
+          },
+          {
+            "position": [
+              2,
+              3
+            ]
+          }
+        ],
+        "pattern": [
+          3,
+          3,
+          3,
+          2,
+          1
+        ],
+        "symbolId": "6",
+        "symbolName": "Basket",
+        "payout": 0.04,
+        "matchCount": 4
+      }
+    ],
+    "goldenPositions": [
+      {
+        "symbolId": 8,
+        "positions": [
+          [
+            2,
+            1
+          ]
+        ]
+      },
+      {
+        "symbolId": 5,
+        "positions": [
+          [
+            2,
+            2
+          ]
+        ]
+      },
+      {
+        "symbolId": 6,
+        "positions": [
+          [
+            2,
+            3
+          ]
+        ]
+      }
+    ],
+    "wheelBonus": {
+      "wheelType": "medium",
+      "goldenSymbols": {
+        "symbolId": "8",
+        "symbolName": "Jewels",
+        "row": 2,
+        "positions": [
+          1,
+          2,
+          3
+        ],
+        "count": 3
+      },
+      "featureType": "freeSpin",
+      "featureValue": 10,
+      "awardValue": 0,
+      "wheelTypeChain": [
+        "small",
+        "medium"
+      ]
+    },
+    "wildPositions": [],
+    "activeLines": 30,
+    "freeSpinsRemaining": 10,
+    "isFreeSpinActive": false,
+    "wildFeaturePending": 0,
+    "iswheeltrigger": true,
+    "isfreespintriggered": true
+  },
+  "features": {},
+  "player": {
+    "balance": 452.24
+  }
+}

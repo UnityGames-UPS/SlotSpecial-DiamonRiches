@@ -1,0 +1,203 @@
+{
+  "success": true,
+  "matrix": [
+    [
+      "10",
+      "4",
+      "9",
+      "8",
+      "0"
+    ],
+    [
+      "10",
+      "0",
+      "2",
+      "2",
+      "6"
+    ],
+    [
+      "1",
+      "4",
+      "0",
+      "1",
+      "8"
+    ],
+    [
+      "0",
+      "7",
+      "5",
+      "9",
+      "7"
+    ]
+  ],
+  "id": "ResultData",
+  "payload": {
+    "winAmount": 0.024,
+    "lineWins": [
+      {
+        "lineIndex": 4,
+        "positions": [
+          {
+            "position": [
+              0,
+              0
+            ]
+          },
+          {
+            "position": [
+              1,
+              1
+            ]
+          },
+          {
+            "position": [
+              2,
+              2
+            ]
+          }
+        ],
+        "pattern": [
+          0,
+          1,
+          2,
+          1,
+          0
+        ],
+        "symbolId": "0",
+        "symbolName": "J",
+        "payout": 0.008,
+        "matchCount": 3
+      },
+      {
+        "lineIndex": 24,
+        "positions": [
+          {
+            "position": [
+              1,
+              0
+            ]
+          },
+          {
+            "position": [
+              1,
+              1
+            ]
+          },
+          {
+            "position": [
+              2,
+              2
+            ]
+          }
+        ],
+        "pattern": [
+          1,
+          1,
+          2,
+          1,
+          1
+        ],
+        "symbolId": "0",
+        "symbolName": "J",
+        "payout": 0.008,
+        "matchCount": 3
+      },
+      {
+        "lineIndex": 28,
+        "positions": [
+          {
+            "position": [
+              0,
+              0
+            ]
+          },
+          {
+            "position": [
+              1,
+              1
+            ]
+          },
+          {
+            "position": [
+              2,
+              2
+            ]
+          }
+        ],
+        "pattern": [
+          0,
+          1,
+          2,
+          2,
+          2
+        ],
+        "symbolId": "0",
+        "symbolName": "J",
+        "payout": 0.008,
+        "matchCount": 3
+      }
+    ],
+    "goldenPositions": [
+      {
+        "symbolId": 4,
+        "positions": [
+          [
+            0,
+            1
+          ]
+        ]
+      },
+      {
+        "symbolId": 9,
+        "positions": [
+          [
+            0,
+            2
+          ]
+        ]
+      },
+      {
+        "symbolId": 8,
+        "positions": [
+          [
+            0,
+            3
+          ]
+        ]
+      }
+    ],
+    "wheelBonus": {
+      "wheelType": "large",
+      "goldenSymbols": {
+        "symbolId": "4",
+        "symbolName": "Seed",
+        "row": 0,
+        "positions": [
+          1,
+          2,
+          3
+        ],
+        "count": 3
+      },
+      "featureType": "freeSpin",
+      "featureValue": 20,
+      "awardValue": 0,
+      "wheelTypeChain": [
+        "small",
+        "medium",
+        "large"
+      ]
+    },
+    "wildPositions": [],
+    "activeLines": 30,
+    "freeSpinsRemaining": 20,
+    "isFreeSpinActive": false,
+    "wildFeaturePending": 0,
+    "iswheeltrigger": true,
+    "isfreespintriggered": true
+  },
+  "features": {},
+  "player": {
+    "balance": 450.982
+  }
+}

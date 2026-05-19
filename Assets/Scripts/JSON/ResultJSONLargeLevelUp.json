@@ -1,0 +1,305 @@
+{
+  "success": true,
+  "matrix": [
+    [
+      "5",
+      "4",
+      "6",
+      "8",
+      "8"
+    ],
+    [
+      "1",
+      "4",
+      "3",
+      "5",
+      "5"
+    ],
+    [
+      "10",
+      "3",
+      "3",
+      "0",
+      "4"
+    ],
+    [
+      "3",
+      "5",
+      "5",
+      "4",
+      "0"
+    ]
+  ],
+  "id": "ResultData",
+  "payload": {
+    "winAmount": 0.13,
+    "lineWins": [
+      {
+        "lineIndex": 2,
+        "positions": [
+          {
+            "position": [
+              2,
+              0
+            ]
+          },
+          {
+            "position": [
+              2,
+              1
+            ]
+          },
+          {
+            "position": [
+              2,
+              2
+            ]
+          }
+        ],
+        "pattern": [
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "symbolId": "3",
+        "symbolName": "A",
+        "payout": 0.008,
+        "matchCount": 3
+      },
+      {
+        "lineIndex": 5,
+        "positions": [
+          {
+            "position": [
+              3,
+              0
+            ]
+          },
+          {
+            "position": [
+              2,
+              1
+            ]
+          },
+          {
+            "position": [
+              1,
+              2
+            ]
+          }
+        ],
+        "pattern": [
+          3,
+          2,
+          1,
+          2,
+          3
+        ],
+        "symbolId": "3",
+        "symbolName": "A",
+        "payout": 0.008,
+        "matchCount": 3
+      },
+      {
+        "lineIndex": 15,
+        "positions": [
+          {
+            "position": [
+              3,
+              0
+            ]
+          },
+          {
+            "position": [
+              2,
+              1
+            ]
+          },
+          {
+            "position": [
+              2,
+              2
+            ]
+          }
+        ],
+        "pattern": [
+          3,
+          2,
+          2,
+          2,
+          3
+        ],
+        "symbolId": "3",
+        "symbolName": "A",
+        "payout": 0.008,
+        "matchCount": 3
+      },
+      {
+        "lineIndex": 17,
+        "positions": [
+          {
+            "position": [
+              2,
+              0
+            ]
+          },
+          {
+            "position": [
+              3,
+              1
+            ]
+          },
+          {
+            "position": [
+              3,
+              2
+            ]
+          }
+        ],
+        "pattern": [
+          2,
+          3,
+          3,
+          3,
+          2
+        ],
+        "symbolId": "5",
+        "symbolName": "Pomegranate",
+        "payout": 0.01,
+        "matchCount": 3
+      },
+      {
+        "lineIndex": 25,
+        "positions": [
+          {
+            "position": [
+              2,
+              0
+            ]
+          },
+          {
+            "position": [
+              2,
+              1
+            ]
+          },
+          {
+            "position": [
+              1,
+              2
+            ]
+          }
+        ],
+        "pattern": [
+          2,
+          2,
+          1,
+          2,
+          2
+        ],
+        "symbolId": "3",
+        "symbolName": "A",
+        "payout": 0.008,
+        "matchCount": 3
+      },
+      {
+        "lineIndex": 29,
+        "positions": [
+          {
+            "position": [
+              3,
+              0
+            ]
+          },
+          {
+            "position": [
+              2,
+              1
+            ]
+          },
+          {
+            "position": [
+              1,
+              2
+            ]
+          }
+        ],
+        "pattern": [
+          3,
+          2,
+          1,
+          1,
+          1
+        ],
+        "symbolId": "3",
+        "symbolName": "A",
+        "payout": 0.008,
+        "matchCount": 3
+      }
+    ],
+    "goldenPositions": [
+      {
+        "symbolId": 4,
+        "positions": [
+          [
+            1,
+            1
+          ]
+        ]
+      },
+      {
+        "symbolId": 3,
+        "positions": [
+          [
+            1,
+            2
+          ]
+        ]
+      },
+      {
+        "symbolId": 5,
+        "positions": [
+          [
+            1,
+            3
+          ]
+        ]
+      }
+    ],
+    "wheelBonus": {
+      "wheelType": "large",
+      "goldenSymbols": {
+        "symbolId": "4",
+        "symbolName": "Seed",
+        "row": 1,
+        "positions": [
+          1,
+          2,
+          3
+        ],
+        "count": 3
+      },
+      "featureType": "multiplier",
+      "featureValue": 80,
+      "awardValue": 0.08,
+      "wheelTypeChain": [
+        "small",
+        "medium",
+        "large"
+      ]
+    },
+    "wildPositions": [],
+    "activeLines": 30,
+    "freeSpinsRemaining": 0,
+    "isFreeSpinActive": false,
+    "wildFeaturePending": 0,
+    "iswheeltrigger": true,
+    "isfreespintriggered": false
+  },
+  "features": {},
+  "player": {
+    "balance": 474.213
+  }
+}

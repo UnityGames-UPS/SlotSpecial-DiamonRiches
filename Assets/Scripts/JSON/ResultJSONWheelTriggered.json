@@ -1,0 +1,98 @@
+{
+  "success": true,
+  "matrix": [
+    [
+      "5",
+      "0",
+      "6",
+      "1",
+      "0"
+    ],
+    [
+      "0",
+      "2",
+      "3",
+      "8",
+      "4"
+    ],
+    [
+      "6",
+      "4",
+      "5",
+      "7",
+      "0"
+    ],
+    [
+      "3",
+      "0",
+      "4",
+      "8",
+      "0"
+    ]
+  ],
+  "id": "ResultData",
+  "payload": {
+    "winAmount": 0.02,
+    "lineWins": [],
+    "goldenPositions": [
+      {
+        "symbolId": 3,
+        "positions": [
+          [
+            1,
+            2
+          ]
+        ]
+      },
+      {
+        "symbolId": 8,
+        "positions": [
+          [
+            1,
+            3
+          ]
+        ]
+      },
+      {
+        "symbolId": 4,
+        "positions": [
+          [
+            1,
+            4
+          ]
+        ]
+      }
+    ],
+    "wheelBonus": {
+      "wheelType": "small",
+      "goldenSymbols": {
+        "symbolId": "3",
+        "symbolName": "A",
+        "row": 1,
+        "positions": [
+          2,
+          3,
+          4
+        ],
+        "count": 3
+      },
+      "featureType": "multiplier",
+      "featureValue": 20,
+      "awardValue": 0.02,
+      "wheelTypeChain": [
+        "small"
+      ]
+    },
+    "wildPositions": [],
+    "activeLines": 30,
+    "freeSpinsRemaining": 0,
+    "isFreeSpinActive": false,
+    "wildFeaturePending": 0,
+    "iswheeltrigger": true,
+    "isfreespintriggered": false
+  },
+  "features": {},
+  "player": {
+    "balance": 453.165
+  }
+}

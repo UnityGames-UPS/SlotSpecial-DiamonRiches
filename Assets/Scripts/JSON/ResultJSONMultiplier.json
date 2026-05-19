@@ -1,0 +1,129 @@
+{
+  "success": true,
+  "matrix": [
+    [
+      "4",
+      "1",
+      "0",
+      "5",
+      "5"
+    ],
+    [
+      "3",
+      "2",
+      "7",
+      "7",
+      "5"
+    ],
+    [
+      "5",
+      "0",
+      "1",
+      "3",
+      "0"
+    ],
+    [
+      "0",
+      "3",
+      "0",
+      "4",
+      "4"
+    ]
+  ],
+  "id": "ResultData",
+  "payload": {
+    "winAmount": 0.048,
+    "lineWins": [
+      {
+        "lineIndex": 9,
+        "positions": [
+          {
+            "position": [
+              3,
+              0
+            ]
+          },
+          {
+            "position": [
+              2,
+              1
+            ]
+          },
+          {
+            "position": [
+              3,
+              2
+            ]
+          }
+        ],
+        "pattern": [
+          3,
+          2,
+          3,
+          2,
+          3
+        ],
+        "symbolId": "0",
+        "symbolName": "J",
+        "payout": 0.008,
+        "matchCount": 3
+      }
+    ],
+    "goldenPositions": [
+      {
+        "symbolId": 0,
+        "positions": [
+          [
+            0,
+            2
+          ]
+        ]
+      },
+      {
+        "symbolId": 5,
+        "positions": [
+          [
+            0,
+            3
+          ],
+          [
+            0,
+            4
+          ]
+        ]
+      }
+    ],
+    "wheelBonus": {
+      "wheelType": "medium",
+      "goldenSymbols": {
+        "symbolId": "0",
+        "symbolName": "J",
+        "row": 0,
+        "positions": [
+          2,
+          3,
+          4
+        ],
+        "count": 3
+      },
+      "featureType": "multiplier",
+      "featureValue": 40,
+      "awardValue": 0.04,
+      "wheelTypeChain": [
+        "small",
+        "medium"
+      ]
+    },
+    "wildPositions": [],
+    "activeLines": 30,
+    "freeSpinsRemaining": 0,
+    "isFreeSpinActive": false,
+    "wildFeaturePending": 0,
+    "iswheeltrigger": true,
+    "isfreespintriggered": false
+  },
+  "features": {},
+  "player": {
+    "balance": 452.274
+  }
+}
