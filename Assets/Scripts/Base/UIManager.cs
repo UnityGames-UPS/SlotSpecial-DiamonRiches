@@ -15,6 +15,7 @@ public class UIManager : MonoBehaviour
   [SerializeField] internal Button paytable_Button;
   [SerializeField] private GameObject payTablePopup_Object;
   [SerializeField] private Button paytableExit_Button;
+  [SerializeField] private Button paytableBgExit_Button;
 
   [Header("Paytable Texts")]
   [SerializeField] private SymbolPayoutTexts[] SymbolsTexts;
@@ -22,11 +23,18 @@ public class UIManager : MonoBehaviour
   [Header("Pagination")]
   int CurrentIndex = 0;
   [SerializeField] private GameObject[] paytableList;
-  [SerializeField] private Button RightBtn;
-  [SerializeField] private Button LeftBtn;
   [SerializeField] private Image[] pageIndicators;
   [SerializeField] private Sprite indicatorOn;
   [SerializeField] private Sprite indicatorOff;
+
+  [Header("Pagination - Drag")]
+  [SerializeField] private float pageWidth = 1453.13f;
+  [SerializeField] private float dragSnapThreshold = 0.25f;
+  [SerializeField] private float edgeResistance = 0.35f;
+  [SerializeField] private float snapDuration = 0.3f;
+  private float _dragAccum;
+  private int _neighborIndex = -1;
+  private bool _dragAtEdge;
 
   [Header("Sound Toggle")]
   [SerializeField] private Button SoundToggle_button;
@@ -148,11 +156,10 @@ public class UIManager : MonoBehaviour
     SetButton(GameExit_Button, () => { OpenPopup(QuitPopupObject); });
     SetButton(paytable_Button, () => { OpenPopup(payTablePopup_Object); });
     SetButton(paytableExit_Button, () => payTablePopup_Object.SetActive(false));
+    SetButton(paytableBgExit_Button, () => payTablePopup_Object.SetActive(false));
 
     SetButton(SoundToggle_button, ToggleSound);
 
-    SetButton(LeftBtn, () => Slide(WrappedIndex(CurrentIndex - 1)));
-    SetButton(RightBtn, () => Slide(WrappedIndex(CurrentIndex + 1)));
     SetButton(CloseDisconnect_Button, CallOnExitFunction);
     SetButton(Close_Button, () => { LowBalancePopup_Object.SetActive(false); OnLowBalConfirm?.Invoke(); });
 
@@ -276,86 +283,115 @@ public class UIManager : MonoBehaviour
   private void InitIndicators()
   {
     for (int i = 0; i < pageIndicators.Length; i++)
-    {
       pageIndicators[i].sprite = i == 0 ? indicatorOn : indicatorOff;
-      Button btn = pageIndicators[i].GetComponent<Button>();
-      if (btn != null)
-      {
-        int captured = i;
-        SetButton(btn, () => SnapToPage(captured));
-      }
-    }
   }
 
-  private int WrappedIndex(int i)
+  internal void OnDragBegin()
   {
-    if (i > paytableList.Length - 1) return 0;
-    if (i < 0) return paytableList.Length - 1;
-    return i;
-  }
-
-  private void SnapToPage(int nextIndex)
-  {
-    if (nextIndex == CurrentIndex) return;
-    if (nextIndex < 0 || nextIndex > paytableList.Length - 1) return;
-
     DOTween.Kill(paytableList[CurrentIndex].transform as RectTransform);
-    DOTween.Kill(paytableList[nextIndex].transform as RectTransform);
-
-    int prevIndex = CurrentIndex;
-    CurrentIndex = nextIndex;
-
-    RectTransform prevRT = paytableList[prevIndex].transform as RectTransform;
-    RectTransform nextRT = paytableList[nextIndex].transform as RectTransform;
-
-    prevRT.anchoredPosition = new Vector2(0, prevRT.anchoredPosition.y);
-    paytableList[prevIndex].SetActive(false);
-
-    nextRT.anchoredPosition = new Vector2(0, nextRT.anchoredPosition.y);
-    paytableList[nextIndex].SetActive(true);
-
-    if (prevIndex < pageIndicators.Length) pageIndicators[prevIndex].sprite = indicatorOff;
-    if (nextIndex < pageIndicators.Length) pageIndicators[nextIndex].sprite = indicatorOn;
-
-    LeftBtn.interactable = true;
-    RightBtn.interactable = true;
+    if (_neighborIndex >= 0 && _neighborIndex < paytableList.Length)
+      DOTween.Kill(paytableList[_neighborIndex].transform as RectTransform);
+    _dragAccum = 0f;
+    _neighborIndex = -1;
+    _dragAtEdge = false;
   }
 
-  private void Slide(int nextIndex)
+  internal void OnDragDelta(float deltaX)
   {
-    if (nextIndex == CurrentIndex) return;
-    if (nextIndex < 0 || nextIndex > paytableList.Length - 1) return;
+    _dragAccum += deltaX;
 
-    bool inc = nextIndex > CurrentIndex;
+    bool atLeftEdge = CurrentIndex == 0 && _dragAccum > 0f;
+    bool atRightEdge = CurrentIndex == paytableList.Length - 1 && _dragAccum < 0f;
+    _dragAtEdge = atLeftEdge || atRightEdge;
 
     RectTransform current = paytableList[CurrentIndex].transform as RectTransform;
-    RectTransform next = paytableList[nextIndex].transform as RectTransform;
 
-    float incomingStartX = inc ? 2340f : -2340f;
-    float outgoingEndX = inc ? -2340f : 2340f;
-
-    next.anchoredPosition = new Vector2(incomingStartX, next.anchoredPosition.y);
-    paytableList[nextIndex].SetActive(true);
-
-    LeftBtn.interactable = false;
-    RightBtn.interactable = false;
-
-    int prevIndex = CurrentIndex;
-    CurrentIndex = nextIndex;
-
-    if (prevIndex < pageIndicators.Length) pageIndicators[prevIndex].sprite = indicatorOff;
-    if (nextIndex < pageIndicators.Length) pageIndicators[nextIndex].sprite = indicatorOn;
-
-    DOTween.Sequence()
-      .Append(current.DOAnchorPosX(outgoingEndX, 0.4f).SetEase(Ease.InOutCubic))
-      .Join(next.DOAnchorPosX(0, 0.4f).SetEase(Ease.InOutCubic))
-      .OnComplete(() =>
+    if (_dragAtEdge)
+    {
+      if (_neighborIndex != -1)
       {
-        paytableList[prevIndex].SetActive(false);
-        current.anchoredPosition = new Vector2(0, current.anchoredPosition.y);
-        LeftBtn.interactable = true;
-        RightBtn.interactable = true;
-      });
+        RectTransform old = paytableList[_neighborIndex].transform as RectTransform;
+        old.anchoredPosition = new Vector2(0, old.anchoredPosition.y);
+        paytableList[_neighborIndex].SetActive(false);
+        _neighborIndex = -1;
+      }
+      float resisted = _dragAccum * edgeResistance;
+      current.anchoredPosition = new Vector2(resisted, current.anchoredPosition.y);
+      return;
+    }
+
+    int wantNeighbor = _dragAccum > 0f ? CurrentIndex - 1 : CurrentIndex + 1;
+    if (wantNeighbor < 0 || wantNeighbor >= paytableList.Length) return;
+
+    if (wantNeighbor != _neighborIndex)
+    {
+      if (_neighborIndex != -1)
+      {
+        RectTransform old = paytableList[_neighborIndex].transform as RectTransform;
+        old.anchoredPosition = new Vector2(0, old.anchoredPosition.y);
+        paytableList[_neighborIndex].SetActive(false);
+      }
+      _neighborIndex = wantNeighbor;
+      paytableList[_neighborIndex].SetActive(true);
+    }
+
+    RectTransform neighbor = paytableList[_neighborIndex].transform as RectTransform;
+    float neighborOffset = _dragAccum > 0f ? -pageWidth : pageWidth;
+    current.anchoredPosition = new Vector2(_dragAccum, current.anchoredPosition.y);
+    neighbor.anchoredPosition = new Vector2(_dragAccum + neighborOffset, neighbor.anchoredPosition.y);
+  }
+
+  internal void OnDragEnd()
+  {
+    RectTransform current = paytableList[CurrentIndex].transform as RectTransform;
+
+    if (_dragAtEdge || _neighborIndex == -1)
+    {
+      current.DOAnchorPosX(0f, snapDuration).SetEase(Ease.OutCubic);
+      _dragAccum = 0f;
+      _dragAtEdge = false;
+      return;
+    }
+
+    RectTransform neighbor = paytableList[_neighborIndex].transform as RectTransform;
+    bool commit = Mathf.Abs(_dragAccum) >= dragSnapThreshold * pageWidth;
+
+    if (commit)
+    {
+      int prevIndex = CurrentIndex;
+      int nextIndex = _neighborIndex;
+      float currentEndX = _dragAccum > 0f ? pageWidth : -pageWidth;
+
+      if (prevIndex < pageIndicators.Length) pageIndicators[prevIndex].sprite = indicatorOff;
+      if (nextIndex < pageIndicators.Length) pageIndicators[nextIndex].sprite = indicatorOn;
+      CurrentIndex = nextIndex;
+
+      DOTween.Sequence()
+        .Append(current.DOAnchorPosX(currentEndX, snapDuration).SetEase(Ease.OutCubic))
+        .Join(neighbor.DOAnchorPosX(0f, snapDuration).SetEase(Ease.OutCubic))
+        .OnComplete(() =>
+        {
+          paytableList[prevIndex].SetActive(false);
+          current.anchoredPosition = new Vector2(0, current.anchoredPosition.y);
+        });
+    }
+    else
+    {
+      int oldNeighbor = _neighborIndex;
+      float neighborEndX = _dragAccum > 0f ? -pageWidth : pageWidth;
+      DOTween.Sequence()
+        .Append(current.DOAnchorPosX(0f, snapDuration).SetEase(Ease.OutCubic))
+        .Join(neighbor.DOAnchorPosX(neighborEndX, snapDuration).SetEase(Ease.OutCubic))
+        .OnComplete(() =>
+        {
+          paytableList[oldNeighbor].SetActive(false);
+          neighbor.anchoredPosition = new Vector2(0, neighbor.anchoredPosition.y);
+        });
+    }
+
+    _dragAccum = 0f;
+    _neighborIndex = -1;
+    _dragAtEdge = false;
   }
   internal void CheckAndClosePopup()
   {
