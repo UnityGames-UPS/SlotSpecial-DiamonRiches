@@ -157,9 +157,7 @@ public class UIManager : MonoBehaviour
     SetButton(paytable_Button, () => { OpenPopup(payTablePopup_Object); });
     SetButton(paytableExit_Button, () => payTablePopup_Object.SetActive(false));
     SetButton(paytableBgExit_Button, () => payTablePopup_Object.SetActive(false));
-
-    SetButton(SoundToggle_button, ToggleSound);
-
+    // SetButton(SoundToggle_button, ToggleSound);
     SetButton(CloseDisconnect_Button, CallOnExitFunction);
     SetButton(Close_Button, () => { LowBalancePopup_Object.SetActive(false); OnLowBalConfirm?.Invoke(); });
 

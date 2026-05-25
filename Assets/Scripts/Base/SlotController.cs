@@ -49,6 +49,11 @@ public class SlotController : MonoBehaviour
   [SerializeField] private float betweenLineDelay = 0.25f;
   private Coroutine WinLoopCorutine = null;
 
+  void Awake()
+  {
+    ShuffleMatrix();
+  }
+
   internal IEnumerator StartSpin()
   {
     StopWinLoop();
@@ -185,32 +190,29 @@ public class SlotController : MonoBehaviour
     }
   }
 
-  [SerializeField] private float initDelay = 0.7f;
-  [SerializeField] private float loopDelay = 0.7f;
+  // Reel travel speed in local units/second. Durations are derived from this so
+  // every move (intro, loop, stop) runs at a constant speed regardless of distance.
+  [SerializeField] private float reelSpeed = 2857f;
+
+  private const float SpinTopY = 1500f;
+  private const float SpinBottomY = -1500f;
+  private const float RestY = 145.402496f;
+
+  // Duration needed to travel between two Y positions at reelSpeed.
+  private float DurationFor(float fromY, float toY)
+    => Mathf.Abs(toY - fromY) / Mathf.Max(reelSpeed, 0.0001f);
+
   #region TweeningCode
   private Tween InitializeTweening(Transform slotTransform)
   {
-    // Bridge duration is half the InBack duration.
-    // Start tangent (1.85) always matches InBack exit velocity regardless of initDelay.
-    // End tangent is derived so bridge exit velocity == linear loop entry velocity:
-    //   endTangent = (initDelay * 0.5f) / loopDelay
-    float bridgeDuration = initDelay * 0.5f;
-    float bridgeEndTangent = bridgeDuration / loopDelay;
-    AnimationCurve bridgeCurve = new AnimationCurve(
-      new Keyframe(0f, 0f, 1.85f, 1.85f),
-      new Keyframe(1f, 1f, bridgeEndTangent, bridgeEndTangent)
-    );
-
     Sequence seq = DOTween.Sequence();
-    seq.Append(slotTransform.DOLocalMoveY(-1306.93506f, initDelay).SetEase(Ease.InBack, 0.8f)); //Vector3(-343.799988,-1306.93506,0)
-    seq.AppendCallback(() =>
-      slotTransform.localPosition = new Vector2(slotTransform.localPosition.x, 1290.06494f)); // Vector3(-343.799988,1290.06494,0)
-    seq.Append(slotTransform.DOLocalMoveY(-1306.93506f, bridgeDuration).SetEase(bridgeCurve));
+    float startY = slotTransform.localPosition.y;
+    seq.Append(slotTransform.DOLocalMoveY(SpinBottomY, DurationFor(startY, SpinBottomY)).SetEase(Ease.Linear));
     seq.AppendCallback(() =>
     {
-      slotTransform.localPosition = new Vector2(slotTransform.localPosition.x, 1290.06494f);
-      ShuffleMatrix(ignoreResultMatrix: true);
-      Tweener tweener = slotTransform.DOLocalMoveY(-1306.93506f, loopDelay)
+      slotTransform.localPosition = new Vector2(slotTransform.localPosition.x, SpinTopY);
+      // ShuffleMatrix(ignoreResultMatrix: true);
+      Tweener tweener = slotTransform.DOLocalMoveY(SpinBottomY, DurationFor(SpinTopY, SpinBottomY))
         .SetLoops(-1, LoopType.Restart)
         .SetEase(Ease.Linear);
       alltweens.Add(tweener);
@@ -218,12 +220,11 @@ public class SlotController : MonoBehaviour
     return seq;
   }
 
-  [SerializeField] private float stopDelay = 0.7f;
   private void StopTweening(Transform slotTransform, int index)
   {
     alltweens[index].Kill();
-    slotTransform.localPosition = new Vector2(slotTransform.localPosition.x, 870.000122f); //Vector3(-343.799988,870.000122,0)
-    alltweens[index] = slotTransform.DOLocalMoveY(150.000107f, stopDelay).SetEase(Ease.OutBack, 0.8f); //Vector3(-343.799988,150.000107,0)
+    slotTransform.localPosition = new Vector2(slotTransform.localPosition.x, SpinTopY);
+    alltweens[index] = slotTransform.DOLocalMoveY(RestY, DurationFor(SpinTopY, RestY)).SetEase(Ease.Linear);
   }
 
   private void KillAllTweens()

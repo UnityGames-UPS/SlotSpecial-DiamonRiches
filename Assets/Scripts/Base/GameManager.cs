@@ -80,8 +80,6 @@ public class GameManager : MonoBehaviour
     SetButton(TurboOFF_Button, () => { ToggleTurboMode(); });
     SetButton(StopSpin_Button, () => StartCoroutine(StopSpin()));
 
-
-    slotManager.ShuffleMatrix();
     socketController.OnInit = InitGame;
     uIManager.ToggleAudio = audioController.SetMuteAll;
     uIManager.playButtonAudio = (s) => audioController.Play(s);
@@ -245,59 +243,59 @@ public class GameManager : MonoBehaviour
   IEnumerator SpinRoutine()
   {
     ToggleButtonGrp(false);
-    bool start = OnSpinStart();
+    // bool start = OnSpinStart();
 
-    // ===== CASE 1: Spin did not start (low balance etc.)
-    if (!start)
-    {
-      spinRoutine = null;
-      isSpinning = false;
+    // // ===== CASE 1: Spin did not start (low balance etc.)
+    // if (!start)
+    // {
+    //   spinRoutine = null;
+    //   isSpinning = false;
 
-      if (isAutoSpin)
-      {
-        StartCoroutine(StopAutoSpinCoroutine());
-      }
+    //   if (isAutoSpin)
+    //   {
+    //     StartCoroutine(StopAutoSpinCoroutine());
+    //   }
 
-      yield break;
-    }
+    //   yield break;
+    // }
 
     yield return OneSpinFlow();
 
     // Chain wild-triggered spins; each chained result can itself trigger another wild
     // (wildFeaturePending > 0) or land a free-spin trigger, so re-check after every spin.
-    while (true)
-    {
-      if (!isFreeSpin && LastSpinWasFreeSpinTrigger())
-      {
-        int awarded = LastSpinFreeSpinAward();
-        isFreeSpin = true;
-        isAutoSpin = false;
-        if (autoSpinRoutine != null) { StopCoroutine(autoSpinRoutine); autoSpinRoutine = null; }
-        AutoSpin_Button.gameObject.SetActive(true);
+    // while (true)
+    // {
+    //   if (!isFreeSpin && LastSpinWasFreeSpinTrigger())
+    //   {
+    //     int awarded = LastSpinFreeSpinAward();
+    //     isFreeSpin = true;
+    //     isAutoSpin = false;
+    //     if (autoSpinRoutine != null) { StopCoroutine(autoSpinRoutine); autoSpinRoutine = null; }
+    //     AutoSpin_Button.gameObject.SetActive(true);
 
-        audioController.Play("FP");
+    //     audioController.Play("FP");
 
-        yield return freeSpinController.RunFreeSpins(
-          awarded,
-          OneSpinFlow,
-          LastSpinWinAmount,
-          LastSpinWasFreeSpinTrigger,
-          LastSpinFreeSpinAward,
-          uIManager.SetPlayerCurrentWinning,
-          OnFreeSpinsComplete
-        );
-        break;
-      }
+    //     yield return freeSpinController.RunFreeSpins(
+    //       awarded,
+    //       OneSpinFlow,
+    //       LastSpinWinAmount,
+    //       LastSpinWasFreeSpinTrigger,
+    //       LastSpinFreeSpinAward,
+    //       uIManager.SetPlayerCurrentWinning,
+    //       OnFreeSpinsComplete
+    //     );
+    //     break;
+    //   }
 
-      if (!isAutoSpin && !isFreeSpin && LastSpinWasWildTrigger())
-      {
-        if (!OnSpinStart()) break;
-        yield return OneSpinFlow();
-        continue;
-      }
+    //   if (!isAutoSpin && !isFreeSpin && LastSpinWasWildTrigger())
+    //   {
+    //     if (!OnSpinStart()) break;
+    //     yield return OneSpinFlow();
+    //     continue;
+    //   }
 
-      break;
-    }
+    //   break;
+    // }
 
     if (!isAutoSpin && !isFreeSpin)
     {
@@ -376,35 +374,35 @@ public class GameManager : MonoBehaviour
 
   IEnumerator OnSpin()
   {
-    if (!isFreeSpin)
-      uIManager.SetPlayerBalance(socketController.PlayerData.balance - currentTotalBet);
+    // if (!isFreeSpin)
+    //   uIManager.SetPlayerBalance(socketController.PlayerData.balance - currentTotalBet);
 
     if (!isFreeSpin && !LastSpinWasWildTrigger())
       StopSpin_Button.gameObject.SetActive(true);
     yield return slotManager.StartSpin();
 
-    socketController.AccumulateResult(betCounter);
-    yield return new WaitUntil(() => socketController.isResultdone);
+    // socketController.AccumulateResult(betCounter);
+    // yield return new WaitUntil(() => socketController.isResultdone);
 
-    HandleAutoUntilFeatureCutoff();
+    // HandleAutoUntilFeatureCutoff();
 
-    slotManager.PopulateSlotMatrix(socketController.ResultData.matrix, socketController.ResultData.payload.goldenPositions);
+    // slotManager.PopulateSlotMatrix(socketController.ResultData.matrix, socketController.ResultData.payload.goldenPositions);
 
-    var wildPositions = socketController.ResultData.payload.wildPositions;
-    bool hasWild = wildPositions != null && wildPositions.Count > 0;
-    if (hasWild)
-    {
-      if (StopSpin_Button.gameObject.activeSelf)
-        StopSpin_Button.gameObject.SetActive(false);
-      if (isFreeSpin && freeSpinController != null)
-        freeSpinController.SetButtonsInteractable(false, false);
+    // var wildPositions = socketController.ResultData.payload.wildPositions;
+    // bool hasWild = wildPositions != null && wildPositions.Count > 0;
+    // if (hasWild)
+    // {
+    //   if (StopSpin_Button.gameObject.activeSelf)
+    //     StopSpin_Button.gameObject.SetActive(false);
+    //   if (isFreeSpin && freeSpinController != null)
+    //     freeSpinController.SetButtonsInteractable(false, false);
 
 
-      if (!isFreeSpin)
-        StopSpin_Button.gameObject.SetActive(true);
-    }
+    //   if (!isFreeSpin)
+    //     StopSpin_Button.gameObject.SetActive(true);
+    // }
 
-    int waitFor = 4;
+    int waitFor = 15;
     for (int i = 0; i < waitFor; i++)
     {
       if (immediateStop)

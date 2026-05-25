@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: fe76c6d529af34cd48d05cbfa279331f
+guid: 4f7a2b1abd2e04dcdbbef3f0ab887a85
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -123,13 +123,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: numbers_0
+      name: spin and stop button@72x_0
       rect:
         serializedVersion: 2
         x: 0
-        y: 602
-        width: 267
-        height: 301
+        y: 916
+        width: 333
+        height: 305
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -138,20 +138,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: e0f5f34d730744709beabf6147c857e5
-      internalID: 1333289296
+      spriteID: f3d5bddc431de49b093c7e0dc852ce98
+      internalID: 1389257795
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: numbers_1
+      name: spin and stop button@72x_1
       rect:
         serializedVersion: 2
-        x: 267
-        y: 602
-        width: 267
-        height: 301
+        x: 333
+        y: 916
+        width: 333
+        height: 305
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -160,64 +160,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: afdbc4eb400ce494d9150810856d7e24
-      internalID: 784200095
+      spriteID: 80723e1efaa534eea82fec49010bf154
+      internalID: -596992691
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: numbers_2
-      rect:
-        serializedVersion: 2
-        x: 534
-        y: 602
-        width: 267
-        height: 301
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 4119151d72f714fe4b39f824474d1cde
-      internalID: -579257693
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: numbers_3
-      rect:
-        serializedVersion: 2
-        x: 801
-        y: 602
-        width: 267
-        height: 301
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 72b741ff390524fdeaa3e99fb27b7515
-      internalID: -2074546939
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: numbers_4
+      name: spin and stop button@72x_2
       rect:
         serializedVersion: 2
         x: 0
-        y: 301
-        width: 267
-        height: 301
+        y: 611
+        width: 333
+        height: 305
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -226,20 +182,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 37cf0664880f943d9a0ba74716f70d5f
-      internalID: 424087379
+      spriteID: e0cf58902aaf24d64af5cf885d431e76
+      internalID: -1082551819
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: numbers_5
+      name: spin and stop button@72x_3
       rect:
         serializedVersion: 2
-        x: 267
-        y: 301
-        width: 267
-        height: 301
+        x: 333
+        y: 611
+        width: 333
+        height: 305
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -248,64 +204,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 10e11d3c53cfc4c10b43414cdc6ba857
-      internalID: -1307207419
+      spriteID: 86fc214aac977427181afc4518b19024
+      internalID: 1219193694
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: numbers_6
-      rect:
-        serializedVersion: 2
-        x: 534
-        y: 301
-        width: 267
-        height: 301
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 05125aa8a50764012b963a1a0952ed7e
-      internalID: -945514976
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: numbers_7
-      rect:
-        serializedVersion: 2
-        x: 801
-        y: 301
-        width: 267
-        height: 301
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: d3f3cb520b6aa4af9bb03ded71ff73b4
-      internalID: -1325453781
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: numbers_8
+      name: spin and stop button@72x_4
       rect:
         serializedVersion: 2
         x: 0
-        y: 0
-        width: 267
-        height: 301
+        y: 306
+        width: 333
+        height: 305
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -314,20 +226,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: bdf947f7279a149fd942140c041492fc
-      internalID: 1271839812
+      spriteID: 8136bd515d53448539fa28f38f94de40
+      internalID: 980373162
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: numbers_9
+      name: spin and stop button@72x_5
       rect:
         serializedVersion: 2
-        x: 267
-        y: 0
-        width: 267
-        height: 301
+        x: 333
+        y: 306
+        width: 333
+        height: 305
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -336,20 +248,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 5d71c9ca7f98047cea674ca627197929
-      internalID: 226113970
+      spriteID: da54d0c175e494694aeaa2bda4ec06b7
+      internalID: -727122448
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: numbers_10
+      name: spin and stop button@72x_6
       rect:
         serializedVersion: 2
-        x: 534
-        y: 0
-        width: 267
-        height: 301
+        x: 0
+        y: 1
+        width: 333
+        height: 305
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -358,20 +270,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 13123081c928f4dbca74630bcfeb5ff9
-      internalID: 1646973105
+      spriteID: 64526f98951a9493097fca4a7baab8a7
+      internalID: -191889016
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: numbers_11
+      name: spin and stop button@72x_7
       rect:
         serializedVersion: 2
-        x: 801
-        y: 0
-        width: 267
-        height: 301
+        x: 333
+        y: 1
+        width: 333
+        height: 305
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -380,8 +292,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 4e2e2dc1af90049ee98c3a9777821010
-      internalID: 703123487
+      spriteID: 09f66035ef794409b8d98de522ba8020
+      internalID: -398844901
       vertices: []
       indices: 
       edges: []
@@ -400,20 +312,16 @@ TextureImporter:
     spriteCustomMetadata:
       entries:
       - key: SpriteEditor.SliceSettings
-        value: '{"sliceOnImport":false,"gridCellCount":{"x":4.0,"y":3.0},"gridSpriteSize":{"x":267.0,"y":301.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":2,"keepEmptyRects":false,"isAlternate":false}'
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":2.0,"y":4.0},"gridSpriteSize":{"x":333.0,"y":305.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":2,"keepEmptyRects":false,"isAlternate":false}'
     nameFileIdTable:
-      numbers_0: 1333289296
-      numbers_1: 784200095
-      numbers_10: 1646973105
-      numbers_11: 703123487
-      numbers_2: -579257693
-      numbers_3: -2074546939
-      numbers_4: 424087379
-      numbers_5: -1307207419
-      numbers_6: -945514976
-      numbers_7: -1325453781
-      numbers_8: 1271839812
-      numbers_9: 226113970
+      spin and stop button@72x_0: 1389257795
+      spin and stop button@72x_1: -596992691
+      spin and stop button@72x_2: -1082551819
+      spin and stop button@72x_3: 1219193694
+      spin and stop button@72x_4: 980373162
+      spin and stop button@72x_5: -727122448
+      spin and stop button@72x_6: -191889016
+      spin and stop button@72x_7: -398844901
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

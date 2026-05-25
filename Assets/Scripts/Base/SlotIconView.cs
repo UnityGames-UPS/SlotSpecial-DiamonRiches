@@ -83,13 +83,13 @@ public class SlotIconView : MonoBehaviour
 
   void Start()
   {
-    if (!previewAnimations) return;
+    // if (!previewAnimations) return;
 
-    bgImage.gameObject.SetActive(true);
-    bgImage.StartAnimation();
+    // bgImage.gameObject.SetActive(true);
+    // bgImage.StartAnimation();
 
-    borderAnimation.gameObject.SetActive(true);
-    borderAnimation.StartAnimation();
+    // borderAnimation.gameObject.SetActive(true);
+    // borderAnimation.StartAnimation();
   }
 
   internal void Lift(Transform overlayParent)
@@ -107,15 +107,7 @@ public class SlotIconView : MonoBehaviour
   {
     iconImage.sprite = image;
     id = ID;
-    iconImage.rectTransform.sizeDelta = ID switch
-    {
-      9 => new Vector2(225f, 195f),
-      _ => new Vector2(175f, 150f)
-    };
-    Dark.rectTransform.sizeDelta = iconImage.rectTransform.sizeDelta;
-    bgImage.gameObject.SetActive(true);
   }
-
   internal void SetGoldIcon(Sprite image)
   {
     isGold = true;
