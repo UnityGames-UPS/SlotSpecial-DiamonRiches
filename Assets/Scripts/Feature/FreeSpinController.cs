@@ -47,6 +47,9 @@ public class FreeSpinController : MonoBehaviour
   private bool _skipRequested;
   private bool _okClicked;
 
+  // Assigned by GameManager at startup (immediateStop is now an instance field on GameManager).
+  internal GameManager gameManager;
+
   void Awake()
   {
     if (startButton != null)
@@ -59,7 +62,7 @@ public class FreeSpinController : MonoBehaviour
       stopButton.onClick.RemoveAllListeners();
       stopButton.onClick.AddListener(() =>
       {
-        GameManager.immediateStop = true;
+        gameManager.immediateStop = true;
         stopButton.interactable = false;
       });
     }

@@ -232,28 +232,29 @@ public class UIManager : MonoBehaviour
 
   internal bool IsLowBalPopupOpen => LowBalancePopup_Object != null && LowBalancePopup_Object.activeSelf;
 
+  // TODO: rework to use Symbol.payout + features.diamondPayout (Symbol.multiplier is now always empty in Diamond Riches, so texts currently clear).
   internal void PopulateSymbolsPayout(UiData uiData)
   {
-    if (uiData == null || uiData.paylines.symbols == null)
-      return;
+    // if (uiData == null || uiData.paylines.symbols == null)
+    //   return;
 
-    foreach(var symbolText in SymbolsTexts)
-    {
-      Symbol symbol = uiData.paylines.symbols.FirstOrDefault(s => s.name == symbolText.symbolName);
-      if (symbol == null || symbol.multiplier == null || symbol.multiplier.Count == 0)
-      {
-        symbolText.symbolText.ForEach(t => t.text = "");
-        continue;
-      }
+    // foreach(var symbolText in SymbolsTexts)
+    // {
+    //   Symbol symbol = uiData.paylines.symbols.FirstOrDefault(s => s.name == symbolText.symbolName);
+    //   if (symbol == null || symbol.multiplier == null || symbol.multiplier.Count == 0)
+    //   {
+    //     symbolText.symbolText.ForEach(t => t.text = "");
+    //     continue;
+    //   }
 
-      int multiplierCount = symbol.multiplier.Count;
-      for (int j = 0; j < multiplierCount; j++)
-      {
-        double payout = symbol.multiplier[j] * socketController.InitLineBetData.bets[gameManager.betCounter];
-        string payoutText = $"{payout}";
-        symbolText.symbolText[j].text = payoutText;
-      }
-    }
+    //   int multiplierCount = symbol.multiplier.Count;
+    //   for (int j = 0; j < multiplierCount; j++)
+    //   {
+    //     double payout = symbol.multiplier[j] * socketController.InitLineBetData.bets[gameManager.betCounter];
+    //     string payoutText = $"{payout}";
+    //     symbolText.symbolText[j].text = payoutText;
+    //   }
+    // }
   }
 
   private void CallOnExitFunction()

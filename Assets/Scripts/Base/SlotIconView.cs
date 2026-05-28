@@ -11,17 +11,10 @@ public class SlotIconView : MonoBehaviour
   [SerializeField] internal int pos;
   [SerializeField] internal int id = -1;
   [SerializeField] internal Image iconImage;
-  [SerializeField] internal Image goldenIconImage;
   [SerializeField] internal ImageAnimation bgImage;
-  [SerializeField] internal Image goldenBgImage;
-  [SerializeField] internal Image Dark;
-  [SerializeField] internal bool isGold;
   [SerializeField] internal ImageAnimation borderAnimation;
   [SerializeField] internal ImageAnimation activeanimation;
-  [SerializeField] private GameObject WinAmountBox;
   [SerializeField] private TMP_Text WinAmountText;
-  [SerializeField] private Image DarkMaskImage;
-  [SerializeField] private Sprite SpecialSymbolMaskSprite;
 
   [Header("Special Symbol Animation Overlay")]
   [SerializeField] internal Image specialAnimImage;
@@ -79,6 +72,8 @@ public class SlotIconView : MonoBehaviour
         _bgDefaultAnchoredPos = bgRt.anchoredPosition3D;
       }
     }
+    if(borderAnimation.gameObject.activeInHierarchy)
+      borderAnimation.gameObject.SetActive(false);
   }
 
   void Start()
@@ -108,43 +103,6 @@ public class SlotIconView : MonoBehaviour
     iconImage.sprite = image;
     id = ID;
   }
-  internal void SetGoldIcon(Sprite image)
-  {
-    isGold = true;
-    goldenBgImage.gameObject.SetActive(true);
-    if (id == 10) return; // visual handled by WildIconView overlay layer
-    goldenIconImage.color = Color.white;
-    goldenIconImage.sprite = image;
-    goldenIconImage.rectTransform.sizeDelta = id switch
-    {
-      9 => new Vector2(225f, 195f),
-      _ => new Vector2(175f, 150f)
-    };
-    goldenIconImage.gameObject.SetActive(true);
-    AnimateDarkImage(false);
-  }
-
-  internal void AnimateGoldIcon(bool show = false)
-  {
-    goldenIconImage.DOFade(show ? 1 : 0, 0.5f);
-  }
-
-  internal void AnimateDarkImage(bool show = false)
-  {
-    float targetAlpha = show ? 215f / 255f : 0f;
-    
-    Dark.DOFade(targetAlpha, 0.5f);
-    if (id == 9)
-    {
-      DarkMaskImage.rectTransform.sizeDelta = new Vector2(225f, 195f);
-      DarkMaskImage.sprite = SpecialSymbolMaskSprite;
-    }
-    else
-    {
-      DarkMaskImage.rectTransform.sizeDelta = new Vector2(175f, 150f);
-      DarkMaskImage.sprite = null;
-    }
-  } 
 
   internal void Reset()
   {
@@ -154,36 +112,13 @@ public class SlotIconView : MonoBehaviour
     iconAnim?.Kill();
     iconAnim = null;
 
-    // Reset gold state
-    if (isGold)
-    {
-      AnimateGoldIcon(true);
-      DOVirtual.DelayedCall(0.7f, () =>
-      {
-        goldenBgImage.gameObject.SetActive(false);
-        goldenIconImage.gameObject.SetActive(false);
-      });
-      isGold = false;
-    }
-    else
-    {
-      goldenIconImage.color = Color.white;
-      goldenBgImage.gameObject.SetActive(false);
-      goldenIconImage.gameObject.SetActive(false);
-    }
-
     // Reset visuals
     borderAnimation.StopAnimation();
     borderAnimation.doLoopAnimation = false;
     borderAnimation.gameObject.SetActive(false);
-    // Instant dark clear: AnimateDarkImage uses a 0.5s DOFade, which would otherwise
-    // overlap the next reel-spin tween and visually black out the reels.
-    Dark.DOKill();
-    var dc = Dark.color;
-    Dark.color = new Color(dc.r, dc.g, dc.b, 0f);
-    if (WinAmountBox.activeSelf)
+    if (WinAmountText.gameObject.activeSelf)
     {
-      WinAmountBox.SetActive(false);
+      WinAmountText.gameObject.SetActive(false);
       WinAmountText.text = "";
     }
 
@@ -215,82 +150,93 @@ public class SlotIconView : MonoBehaviour
       specialAnimImage.rectTransform.anchoredPosition3D = _specialAnimDefaultAnchoredPos;
     }
     iconImage.color = new Color(1f, 1f, 1f, 1f);
+    iconImage.enabled = true;
 
     // Reset transform
     iconImage.transform.localScale = Vector3.one;
   }
 
-  internal IEnumerator PlayWinIteration(SlotController controller, Transform overlayParent, bool showWinLineText, double winAmount)
+  internal IEnumerator PlayWinIteration(SlotController controller, Transform overlayParent, bool showWinLineText, double winAmount, bool isSyncedPass)
   {
     Lift(overlayParent);
-    AnimateDarkImage(false);
 
     if (showWinLineText)
     {
-      WinAmountBox.SetActive(true);
+      WinAmountText.gameObject.SetActive(true);
       WinAmountText.text = TextFormatter.FormatSprite(winAmount, TextFormatter.GetSignificantDecimals(winAmount));
     }
-
-    bgImage.StopAnimation();
-    bgImage.doLoopAnimation = false;
-    bgImage.delayBetweenLoop = 0f;
 
     borderAnimation.gameObject.SetActive(true);
     borderAnimation.doLoopAnimation = false;
     borderAnimation.delayBetweenLoop = 0f;
-    borderAnimation.StopAnimation();
+    // borderAnimation.StartAnimation();
 
-    if (IsSpecialSymbol)
+    // iconAnim?.Kill();
+    // iconImage.transform.localScale = Vector3.one;
+    // float halfPulse = winPulseDuration * 0.5f;
+    // Sequence pulseSeq = DOTween.Sequence();
+    // pulseSeq.Append(iconImage.transform.DOScale(Vector3.one * winPulsePeak, halfPulse).SetEase(Ease.OutSine));
+    // pulseSeq.Append(iconImage.transform.DOScale(Vector3.one, halfPulse).SetEase(Ease.InSine));
+    // pulseSeq.OnKill(() => iconAnim = null);
+    // iconAnim = pulseSeq;
+
+    // yield return new WaitUntil(() =>
+    // {
+    //   // bool pulseDone = pulseSeq == null || !pulseSeq.IsActive() || !pulseSeq.IsPlaying();
+    //   // bool bgDone = !bgImage.isplaying;
+    //   // bool specialDone = !IsSpecialSymbol || specialAnim == null || !specialAnim.isplaying;
+    //   bool borderDone = !IsSpecialSymbol || !borderAnimation.isplaying;
+    //   return borderDone; //&& bgDone && specialDone && borderDone;
+    // });
+
+    var winAnim = controller.GetWinAnim(id);
+
+    if (isSyncedPass)
     {
-      borderAnimation.StartAnimation();
-
-      iconImage.color = new Color(1f, 1f, 1f, 0f);
-
-      var iconSeq = id == 10 ? controller.GetWildIconSprites() : controller.GetLadyIconSprites();
-      if (specialAnim != null && iconSeq != null && iconSeq.Count > 0)
-      {
-        if (id == 9)
-        {
-          specialAnimImage.rectTransform.sizeDelta = LadySpecialAnimSize;
-          specialAnimImage.rectTransform.anchoredPosition3D = LadySpecialAnimPos;
-          specialAnim.AnimationSpeed = controller.GetLadyIconSpeed();
-        }
-        else
-        {
-          specialAnimImage.rectTransform.sizeDelta = WildSpecialAnimSize;
-          specialAnimImage.rectTransform.anchoredPosition3D = WildSpecialAnimPos;
-          specialAnim.AnimationSpeed = controller.GetWildIconSpeed();
-        }
-        specialAnimImage.color = new Color(1f, 1f, 1f, 1f);
-        specialAnim.delayBetweenLoop = 0f;
-        specialAnim.PlaySequence(iconSeq, loop: false);
-      }
-
-      if (id == 10)
-      {
-        var wildBg = controller.GetWildBgSprites();
-        if (wildBg != null && wildBg.Count > 0)
-        {
-          var bgRt = bgImage.GetComponent<RectTransform>();
-          if (bgRt != null)
-          {
-            bgRt.sizeDelta = WildBgSize;
-            bgRt.anchoredPosition3D = WildBgPos;
-          }
-          bgImage.AnimationSpeed = controller.GetWildBgSpeed();
-          bgImage.PlaySequence(wildBg, loop: false);
-        }
-      }
+      if (winAnim != null && winAnim.syncedSprites != null && winAnim.syncedSprites.Count > 0)
+        yield return PlayOverlaySequence(winAnim.syncedSprites, winAnim.syncedSpeed);
       else
-      {
-        if (!isGold) bgImage.StartAnimation();
-      }
+        yield return new WaitForSecondsRealtime(2f); // fallback: ids without sequences yet (2,3,…)
     }
-    else if (!isGold)
+    else // loop pass
     {
-      bgImage.StartAnimation();
+      if (winAnim != null && winAnim.loopUsesPulse)
+        yield return PlayPulse();                          // gold bars id 0,1
+      else if (winAnim != null && winAnim.loopSprites != null && winAnim.loopSprites.Count > 0)
+        yield return PlayOverlaySequence(winAnim.loopSprites, winAnim.loopSpeed);
+      else
+        yield return new WaitForSecondsRealtime(2f);       // fallback
     }
+  }
 
+  // Free-spin (scatter) symbol animation, played in place on reel stop (no lift / no dark overlay).
+  internal IEnumerator PlayFreeSpinAnim(List<Sprite> sprites, float speed)
+  {
+    if (sprites == null || sprites.Count == 0) yield break;
+    yield return PlayOverlaySequence(sprites, speed);
+  }
+
+  IEnumerator PlayOverlaySequence(List<Sprite> sprites, float speed)
+  {
+    if (specialAnim == null || specialAnimImage == null)
+    {
+      yield return new WaitForSecondsRealtime(2f);
+      yield break;
+    }
+    iconImage.enabled = false; // hide the static icon rendering behind the overlay while it plays
+    specialAnimImage.color = new Color(1f, 1f, 1f, 1f);
+    specialAnim.AnimationSpeed = speed;
+    specialAnim.holdAtLastFrame = false;
+    specialAnim.PlaySequence(sprites, loop: false);
+    yield return new WaitUntil(() => !specialAnim.isplaying);
+    specialAnim.StopAnimation();
+    specialAnim.ResetToFirstFrame();
+    specialAnimImage.color = new Color(1f, 1f, 1f, 0f); // hide overlay between iterations
+    iconImage.enabled = true;
+  }
+
+  IEnumerator PlayPulse()
+  {
     iconAnim?.Kill();
     iconImage.transform.localScale = Vector3.one;
     float halfPulse = winPulseDuration * 0.5f;
@@ -299,15 +245,7 @@ public class SlotIconView : MonoBehaviour
     pulseSeq.Append(iconImage.transform.DOScale(Vector3.one, halfPulse).SetEase(Ease.InSine));
     pulseSeq.OnKill(() => iconAnim = null);
     iconAnim = pulseSeq;
-
-    yield return new WaitUntil(() =>
-    {
-      bool pulseDone = pulseSeq == null || !pulseSeq.IsActive() || !pulseSeq.IsPlaying();
-      bool bgDone = isGold || !bgImage.isplaying;
-      bool specialDone = !IsSpecialSymbol || specialAnim == null || !specialAnim.isplaying;
-      bool borderDone = !IsSpecialSymbol || !borderAnimation.isplaying;
-      return pulseDone && bgDone && specialDone && borderDone;
-    });
+    yield return pulseSeq.WaitForCompletion();
   }
 
   internal void ResetLineAnim()
@@ -316,7 +254,6 @@ public class SlotIconView : MonoBehaviour
     iconAnim?.Kill();
     iconAnim = null;
     iconImage.transform.localScale = Vector3.one;
-    AnimateDarkImage(true);
     borderAnimation.doLoopAnimation = false;
     borderAnimation.StopAnimation();
     borderAnimation.gameObject.SetActive(false);
@@ -345,9 +282,10 @@ public class SlotIconView : MonoBehaviour
       specialAnimImage.rectTransform.anchoredPosition3D = _specialAnimDefaultAnchoredPos;
     }
     iconImage.color = new Color(1f, 1f, 1f, 1f);
-    if (WinAmountBox.activeSelf)
+    iconImage.enabled = true;
+    if (WinAmountText.gameObject.activeSelf)
     {
-      WinAmountBox.SetActive(false);
+      WinAmountText.gameObject.SetActive(false);
       WinAmountText.text = "";
     }
   }
@@ -384,5 +322,6 @@ public class SlotIconView : MonoBehaviour
       specialAnimImage.rectTransform.anchoredPosition3D = _specialAnimDefaultAnchoredPos;
     }
     iconImage.color = new Color(1f, 1f, 1f, 1f);
+    iconImage.enabled = true;
   }
 }

@@ -24,6 +24,7 @@ public class GameManager : MonoBehaviour
   [SerializeField] private Button ToatlBetMinus_Button;
   [SerializeField] private Button TotalBetPlus_Button;
   [SerializeField] private TMP_Text totalBet_text;
+  [SerializeField] private TMP_Text LineBet_Text;
   [SerializeField] private bool isSpinning;
   [SerializeField] private Button TurboON_Button;
   [SerializeField] private Button TurboOFF_Button;
@@ -31,7 +32,8 @@ public class GameManager : MonoBehaviour
   [Header("For Auto Spins")]
   [SerializeField] private Button AutoSpin_Button;
   [SerializeField] private Button AutoSpinStop_Button;
-  [SerializeField] internal static bool isAutoSpin;
+  [SerializeField] private GameObject AutoSpinGlow;
+  [SerializeField] internal bool isAutoSpin;
 
   [Header("For Features")]
   [SerializeField] internal ImageAnimation ThreeInARow;
@@ -46,11 +48,11 @@ public class GameManager : MonoBehaviour
   private Coroutine autoSpinRoutine;
   private int _autoSpinRemaining;
   private bool _autoUntilFeature;
-  [SerializeField] internal static bool isFreeSpin;
+  [SerializeField] internal bool isFreeSpin;
 
   private bool initiated;
-  static internal bool turboMode;
-  static internal bool immediateStop;
+  [SerializeField] internal bool turboMode;
+  [SerializeField] internal bool immediateStop;
   private Coroutine spinRoutine;
   private bool autoSkipArmed;
   private bool autoSkipWinRequested;
@@ -71,14 +73,18 @@ public class GameManager : MonoBehaviour
         ExecuteSpin();
       }
     }, true);
-    // AutoSpin button does nothing on click in GameManager — the AutoSpinPanelController handles hover (desktop) and click-toggle (mobile/tablet) to drive the panel. Audio still plays via SetButton wrapper.
-    SetButton(AutoSpin_Button, () => { }, true);
+    // --- OLD (Age of Gods template): panel-driven, click was a no-op because
+    //     AutoSpinPanelController opened a count selection panel on hover/click-toggle.
+    // SetButton(AutoSpin_Button, () => { }, true);
+    SetButton(AutoSpin_Button, () => StartAutoSpin(-1), true);
     SetButton(AutoSpinStop_Button, () => StartCoroutine(StopAutoSpinCoroutine()));
     SetButton(ToatlBetMinus_Button, () => { OnBetChange(false); });
     SetButton(TotalBetPlus_Button, () => { OnBetChange(true); });
     SetButton(TurboON_Button, () => { ToggleTurboMode(); });
     SetButton(TurboOFF_Button, () => { ToggleTurboMode(); });
     SetButton(StopSpin_Button, () => StartCoroutine(StopSpin()));
+
+    if (freeSpinController != null) freeSpinController.gameManager = this;
 
     socketController.OnInit = InitGame;
     uIManager.ToggleAudio = audioController.SetMuteAll;
@@ -109,6 +115,7 @@ public class GameManager : MonoBehaviour
       currentBalance = socketController.PlayerData.balance;
       uIManager.UpdatePlayerInfo();
       if (totalBet_text) totalBet_text.text = TextFormatter.FormatMoney(currentTotalBet);
+      LineBet_Text.text = TextFormatter.FormatMoney(socketController.InitLineBetData.bets[betCounter]);
       UpdateBetButtonsInteractable();
       if (currentBalance < currentTotalBet)
       {
@@ -146,7 +153,9 @@ public class GameManager : MonoBehaviour
     _autoUntilFeature = (count < 0);
     _autoSpinRemaining = count;
     isAutoSpin = true;
-    AutoSpin_Button.gameObject.SetActive(false);
+    // --- OLD (Age of Gods): just hid the auto-spin button via SetActive
+    // AutoSpin_Button.gameObject.SetActive(false);
+    SetAutoSpinUI(true);
     autoSpinRoutine = StartCoroutine(AutoSpinRoutine());
   }
 
@@ -154,15 +163,16 @@ public class GameManager : MonoBehaviour
   // off here (instead of after SpinRoutine returns) lets SpinRoutine's end-of-routine
   // `if (!isAutoSpin && !isFreeSpin) ToggleButtonGrp(true)` re-enable the bottom bar — otherwise
   // a multiplier/wild trigger ends auto-spin with buttons still disabled.
-  void HandleAutoUntilFeatureCutoff()
-  {
-    if (!isAutoSpin || !_autoUntilFeature) return;
-    var p = socketController.ResultData?.payload;
-    if (p == null || !p.iswheeltrigger) return;
-
-    isAutoSpin = false;
-    if (AutoSpin_Button != null) AutoSpin_Button.gameObject.SetActive(true);
-  }
+  // TODO: reimplement against payload.freeSpins / triggeredFeatures (referenced removed field iswheeltrigger)
+  // void HandleAutoUntilFeatureCutoff()
+  // {
+  //   if (!isAutoSpin || !_autoUntilFeature) return;
+  //   var p = socketController.ResultData?.payload;
+  //   if (p == null || !p.iswheeltrigger) return;
+  //
+  //   isAutoSpin = false;
+  //   SetAutoSpinUI(false);
+  // }
 
   void ToggleTurboMode()
   {
@@ -214,16 +224,26 @@ public class GameManager : MonoBehaviour
     isSpinning = false;
     isAutoSpin = false;
 
-    AutoSpin_Button.gameObject.SetActive(true);
+    // --- OLD (Age of Gods): only restored the auto-spin button
+    // AutoSpin_Button.gameObject.SetActive(true);
+    SetAutoSpinUI(false);
     ToggleButtonGrp(true);
   }
 
   private IEnumerator StopAutoSpinCoroutine()
   {
     isAutoSpin = false;
-    AutoSpin_Button.interactable = false;
-    AutoSpin_Button.gameObject.SetActive(true);
+
+    // --- OLD (Age of Gods): swapped buttons via SetActive immediately
+    // AutoSpin_Button.interactable = false;
+    // AutoSpin_Button.gameObject.SetActive(true);
+
+    // Lock stop button so repeat clicks no-op while the current spin finishes.
+    if (AutoSpinStop_Button) AutoSpinStop_Button.interactable = false;
+
     yield return new WaitUntil(() => !isSpinning);
+
+    SetAutoSpinUI(false);
 
     if (!uIManager.IsLowBalPopupOpen)
       ToggleButtonGrp(true);
@@ -242,22 +262,23 @@ public class GameManager : MonoBehaviour
   }
   IEnumerator SpinRoutine()
   {
+    // isSpinning = true; // was set by OnSpinStart(), which is currently commented out; without this StopSpin()'s WaitUntil(!isSpinning) returns instantly and resets immediateStop before it can take effect
     ToggleButtonGrp(false);
-    // bool start = OnSpinStart();
+    bool start = OnSpinStart();
 
     // // ===== CASE 1: Spin did not start (low balance etc.)
-    // if (!start)
-    // {
-    //   spinRoutine = null;
-    //   isSpinning = false;
+    if (!start)
+    {
+      spinRoutine = null;
+      isSpinning = false;
 
-    //   if (isAutoSpin)
-    //   {
-    //     StartCoroutine(StopAutoSpinCoroutine());
-    //   }
+      if (isAutoSpin)
+      {
+        StartCoroutine(StopAutoSpinCoroutine());
+      }
 
-    //   yield break;
-    // }
+      yield break;
+    }
 
     yield return OneSpinFlow();
 
@@ -313,33 +334,34 @@ public class GameManager : MonoBehaviour
     yield return OnSpinEnd();
   }
 
-  internal bool LastSpinWasFreeSpinTrigger()
-  {
-    var p = socketController.ResultData?.payload;
-    if (p == null) return false;
-    if (!p.iswheeltrigger) return false;
-    return p.wheelBonus != null && string.Equals(p.wheelBonus.featureType, "freeSpin", System.StringComparison.OrdinalIgnoreCase);
-  }
-
-  internal bool LastSpinWasWildTrigger()
-  {
-    var p = socketController.ResultData?.payload;
-    if (p == null) return false;
-    if (!p.iswheeltrigger) return false;
-    if (p.wheelBonus == null) return false;
-    if (!string.Equals(p.wheelBonus.featureType, "wild", System.StringComparison.OrdinalIgnoreCase)) return false;
-    return p.wildFeaturePending > 0;
-  }
-
-  int LastSpinFreeSpinAward()
-  {
-    return socketController.ResultData?.payload?.wheelBonus?.featureValue ?? 0;
-  }
-
-  double LastSpinWinAmount()
-  {
-    return socketController.ResultData?.payload?.winAmount ?? 0;
-  }
+  // TODO: reimplement against payload.freeSpins / triggeredFeatures (referenced removed fields iswheeltrigger / wheelBonus / wildFeaturePending)
+  // internal bool LastSpinWasFreeSpinTrigger()
+  // {
+  //   var p = socketController.ResultData?.payload;
+  //   if (p == null) return false;
+  //   if (!p.iswheeltrigger) return false;
+  //   return p.wheelBonus != null && string.Equals(p.wheelBonus.featureType, "freeSpin", System.StringComparison.OrdinalIgnoreCase);
+  // }
+  //
+  // internal bool LastSpinWasWildTrigger()
+  // {
+  //   var p = socketController.ResultData?.payload;
+  //   if (p == null) return false;
+  //   if (!p.iswheeltrigger) return false;
+  //   if (p.wheelBonus == null) return false;
+  //   if (!string.Equals(p.wheelBonus.featureType, "wild", System.StringComparison.OrdinalIgnoreCase)) return false;
+  //   return p.wildFeaturePending > 0;
+  // }
+  //
+  // int LastSpinFreeSpinAward()
+  // {
+  //   return socketController.ResultData?.payload?.wheelBonus?.featureValue ?? 0;
+  // }
+  //
+  // double LastSpinWinAmount()
+  // {
+  //   return socketController.ResultData?.payload?.winAmount ?? 0;
+  // }
 
   void OnFreeSpinsComplete()
   {
@@ -377,16 +399,21 @@ public class GameManager : MonoBehaviour
     // if (!isFreeSpin)
     //   uIManager.SetPlayerBalance(socketController.PlayerData.balance - currentTotalBet);
 
-    if (!isFreeSpin && !LastSpinWasWildTrigger())
+
+    if (!isFreeSpin) // was: && !LastSpinWasWildTrigger() — wild trigger removed in Diamond Riches model
+    {
+      immediateStop = false;
       StopSpin_Button.gameObject.SetActive(true);
+    }
+
     yield return slotManager.StartSpin();
 
-    // socketController.AccumulateResult(betCounter);
-    // yield return new WaitUntil(() => socketController.isResultdone);
+    socketController.AccumulateResult(betCounter);
+    yield return new WaitUntil(() => socketController.isResultdone);
 
     // HandleAutoUntilFeatureCutoff();
 
-    // slotManager.PopulateSlotMatrix(socketController.ResultData.matrix, socketController.ResultData.payload.goldenPositions);
+    slotManager.PopulateSlotMatrix(socketController.ResultData.matrix);
 
     // var wildPositions = socketController.ResultData.payload.wildPositions;
     // bool hasWild = wildPositions != null && wildPositions.Count > 0;
@@ -402,7 +429,7 @@ public class GameManager : MonoBehaviour
     //     StopSpin_Button.gameObject.SetActive(true);
     // }
 
-    int waitFor = 15;
+    int waitFor = 10;
     for (int i = 0; i < waitFor; i++)
     {
       if (immediateStop)
@@ -459,21 +486,22 @@ public class GameManager : MonoBehaviour
 
     // slotManager.ResetWildFeatureIcons();
 
-    // uIManager.UpdatePlayerInfo();
+    uIManager.UpdatePlayerInfo();
 
     // if (socketController.ResultData.payload.winAmount > 0)
     // {
-      
     //   uIManager.TriggerWinAnimation(socketController.ResultData.payload.winAmount, currentTotalBet);
     // }
 
-    // if (socketController.ResultData.payload.lineWins.Count > 0)
-    // {
-    //   audioController.Play("win");
-    //   if (isFreeSpin && freeSpinController != null)
-    //     freeSpinController.SetButtonsInteractable(false, true);
-    //   yield return slotManager.AnimateLineWins(socketController.ResultData.payload.lineWins);
-    // }
+    if (socketController.ResultData.payload.lineWins.Count > 0)
+    {
+      yield return new WaitForSecondsRealtime(1f);
+      // "win" SFX now fires with the win-line animations (after the scatter animations), inside
+      // SlotController's win presentation.
+      if (isFreeSpin && freeSpinController != null)
+        freeSpinController.SetButtonsInteractable(false, true);
+      yield return slotManager.AnimateLineWins(socketController.ResultData.payload.lineWins);
+    }
 
     // bool autoContinued = isFreeSpin || isAutoSpin || LastSpinWasWildTrigger() || LastSpinWasFreeSpinTrigger();
     // if (autoContinued)
@@ -582,6 +610,17 @@ public class GameManager : MonoBehaviour
     return slotManager.slotMatrix[col].slotImages[row].transform;
   }
 
+  void SetAutoSpinUI(bool autoActive)
+  {
+    if (AutoSpin_Button) AutoSpin_Button.gameObject.SetActive(!autoActive);
+    if (AutoSpinStop_Button)
+    {
+      AutoSpinStop_Button.gameObject.SetActive(autoActive);
+      AutoSpinStop_Button.interactable = autoActive;
+    }
+    if (AutoSpinGlow) AutoSpinGlow.SetActive(autoActive);
+  }
+
   internal void ToggleButtonGrp(bool toggle)
   {
     if (SlotStart_Button) SlotStart_Button.interactable = toggle;
@@ -616,6 +655,7 @@ public class GameManager : MonoBehaviour
 
     currentTotalBet = socketController.InitLineBetData.bets[betCounter] * socketController.InitLineBetData.lines.Count;
     if (totalBet_text) totalBet_text.text = TextFormatter.FormatMoney(currentTotalBet);
+    LineBet_Text.text = TextFormatter.FormatMoney(socketController.InitLineBetData.bets[betCounter]);
     UpdateBetButtonsInteractable();
     uIManager.PopulateSymbolsPayout(socketController.InitSymbolData);
   }
