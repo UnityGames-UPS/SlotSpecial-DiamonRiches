@@ -646,11 +646,11 @@ public class GameManager : MonoBehaviour
     int lastIndex = socketController.InitLineBetData.bets.Count - 1;
     if (inc)
     {
-      if (betCounter < lastIndex) betCounter++;
+      betCounter = (betCounter >= lastIndex) ? 0 : betCounter + 1;
     }
     else
     {
-      if (betCounter > 0) betCounter--;
+      betCounter = (betCounter <= 0) ? lastIndex : betCounter - 1;
     }
 
     currentTotalBet = socketController.InitLineBetData.bets[betCounter] * socketController.InitLineBetData.lines.Count;
@@ -663,9 +663,8 @@ public class GameManager : MonoBehaviour
   void UpdateBetButtonsInteractable()
   {
     if (socketController == null || socketController.InitLineBetData == null || socketController.InitLineBetData.bets == null) return;
-    int lastIndex = socketController.InitLineBetData.bets.Count - 1;
-    if (ToatlBetMinus_Button) ToatlBetMinus_Button.interactable = betCounter > 0;
-    if (TotalBetPlus_Button) TotalBetPlus_Button.interactable = betCounter < lastIndex;
+    if (ToatlBetMinus_Button) ToatlBetMinus_Button.interactable = true;
+    if (TotalBetPlus_Button) TotalBetPlus_Button.interactable = true;
   }
 
   void ResetInARowAnimations(bool animate = true)
