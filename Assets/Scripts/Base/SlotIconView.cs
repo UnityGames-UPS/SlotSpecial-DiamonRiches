@@ -17,8 +17,8 @@ public class SlotIconView : MonoBehaviour
   [SerializeField] private TMP_Text WinAmountText;
 
   [Header("Special Symbol Animation Overlay")]
-  [SerializeField] internal Image specialAnimImage;
-  [SerializeField] internal ImageAnimation specialAnim;
+  [SerializeField] internal Image AnimLayerImage;
+  [SerializeField] internal ImageAnimation AnimLayerIA;
 
   [Header("Win Iteration")]
   [SerializeField] private float winPulsePeak = 1.05f;
@@ -32,6 +32,7 @@ public class SlotIconView : MonoBehaviour
   Tween iconAnim;
   private Transform _cachedParent;
   private int _cachedSiblingIndex;
+  private Vector3 _cachedLocalPosition;
   private Vector2 _specialAnimDefaultSize;
   private Vector3 _specialAnimDefaultAnchoredPos;
   private Vector2 _bgDefaultSize;
@@ -50,18 +51,19 @@ public class SlotIconView : MonoBehaviour
   {
     _cachedParent = transform.parent;
     _cachedSiblingIndex = transform.GetSiblingIndex();
-    if (specialAnimImage != null)
+    _cachedLocalPosition = transform.localPosition;
+    if (AnimLayerImage != null)
     {
-      _specialAnimDefaultSize = specialAnimImage.rectTransform.sizeDelta;
-      _specialAnimDefaultAnchoredPos = specialAnimImage.rectTransform.anchoredPosition3D;
+      _specialAnimDefaultSize = AnimLayerImage.rectTransform.sizeDelta;
+      _specialAnimDefaultAnchoredPos = AnimLayerImage.rectTransform.anchoredPosition3D;
     }
-    if (specialAnim != null)
+    if (AnimLayerIA != null)
     {
-      _specialAnimDefaultSpeed = specialAnim.AnimationSpeed;
-      specialAnim.StopAnimation();
-      specialAnim.ResetToFirstFrame();
+      _specialAnimDefaultSpeed = AnimLayerIA.AnimationSpeed;
+      AnimLayerIA.StopAnimation();
+      AnimLayerIA.ResetToFirstFrame();
     }
-    if (specialAnimImage != null) specialAnimImage.color = new Color(1f, 1f, 1f, 0f);
+    if (AnimLayerImage != null) AnimLayerImage.color = new Color(1f, 1f, 1f, 0f);
     if (bgImage != null)
     {
       _bgDefaultSpeed = bgImage.AnimationSpeed;
@@ -94,8 +96,13 @@ public class SlotIconView : MonoBehaviour
 
   internal void Drop()
   {
-    transform.SetParent(_cachedParent, worldPositionStays: true);
+    // worldPositionStays:false + explicit localPosition restore: the symbol's intended slot Y is
+    // the prefab local Y captured at Awake, not whatever world position the overlay parent held
+    // at the moment of Drop. World-stays drift was leaving symbols at wrong Y when a new spin
+    // started mid win-loop.
+    transform.SetParent(_cachedParent, worldPositionStays: false);
     transform.SetSiblingIndex(_cachedSiblingIndex);
+    transform.localPosition = _cachedLocalPosition;
   }
 
   internal void SetIcon(Sprite image, int ID)
@@ -137,17 +144,17 @@ public class SlotIconView : MonoBehaviour
     }
     activeanimation.StopAnimation();
 
-    if (specialAnim != null)
+    if (AnimLayerIA != null)
     {
-      specialAnim.StopAnimation();
-      specialAnim.ResetToFirstFrame();
-      specialAnim.AnimationSpeed = _specialAnimDefaultSpeed;
+      AnimLayerIA.StopAnimation();
+      AnimLayerIA.ResetToFirstFrame();
+      AnimLayerIA.AnimationSpeed = _specialAnimDefaultSpeed;
     }
-    if (specialAnimImage != null)
+    if (AnimLayerImage != null)
     {
-      specialAnimImage.color = new Color(1f, 1f, 1f, 0f);
-      specialAnimImage.rectTransform.sizeDelta = _specialAnimDefaultSize;
-      specialAnimImage.rectTransform.anchoredPosition3D = _specialAnimDefaultAnchoredPos;
+      AnimLayerImage.color = new Color(1f, 1f, 1f, 0f);
+      AnimLayerImage.rectTransform.sizeDelta = _specialAnimDefaultSize;
+      AnimLayerImage.rectTransform.anchoredPosition3D = _specialAnimDefaultAnchoredPos;
     }
     iconImage.color = new Color(1f, 1f, 1f, 1f);
     iconImage.enabled = true;
@@ -158,6 +165,7 @@ public class SlotIconView : MonoBehaviour
 
   internal IEnumerator PlayWinIteration(SlotController controller, Transform overlayParent, bool showWinLineText, double winAmount, bool isSyncedPass)
   {
+    controller.RegisterAnimatingIcon(this);
     Lift(overlayParent);
 
     if (showWinLineText)
@@ -218,20 +226,22 @@ public class SlotIconView : MonoBehaviour
 
   IEnumerator PlayOverlaySequence(List<Sprite> sprites, float speed)
   {
-    if (specialAnim == null || specialAnimImage == null)
+    if (AnimLayerIA == null || AnimLayerImage == null)
     {
       yield return new WaitForSecondsRealtime(2f);
       yield break;
     }
     iconImage.enabled = false; // hide the static icon rendering behind the overlay while it plays
-    specialAnimImage.color = new Color(1f, 1f, 1f, 1f);
-    specialAnim.AnimationSpeed = speed;
-    specialAnim.holdAtLastFrame = false;
-    specialAnim.PlaySequence(sprites, loop: false);
-    yield return new WaitUntil(() => !specialAnim.isplaying);
-    specialAnim.StopAnimation();
-    specialAnim.ResetToFirstFrame();
-    specialAnimImage.color = new Color(1f, 1f, 1f, 0f); // hide overlay between iterations
+    AnimLayerImage.color = new Color(1f, 1f, 1f, 1f);
+    AnimLayerIA.AnimationSpeed = speed;
+    AnimLayerIA.holdAtLastFrame = false;
+    AnimLayerIA.gameObject.SetActive(true);
+    AnimLayerIA.PlaySequence(sprites, loop: false);
+    yield return new WaitUntil(() => !AnimLayerIA.isplaying);
+    AnimLayerIA.StopAnimation();
+    AnimLayerIA.ResetToFirstFrame();
+    AnimLayerImage.color = new Color(1f, 1f, 1f, 0f); // hide overlay between iterations
+    AnimLayerIA.gameObject.SetActive(false);
     iconImage.enabled = true;
   }
 
@@ -269,17 +279,17 @@ public class SlotIconView : MonoBehaviour
         bgRt.anchoredPosition3D = _bgDefaultAnchoredPos;
       }
     }
-    if (specialAnim != null)
+    if (AnimLayerIA != null)
     {
-      specialAnim.StopAnimation();
-      specialAnim.ResetToFirstFrame();
-      specialAnim.AnimationSpeed = _specialAnimDefaultSpeed;
+      AnimLayerIA.StopAnimation();
+      AnimLayerIA.ResetToFirstFrame();
+      AnimLayerIA.AnimationSpeed = _specialAnimDefaultSpeed;
     }
-    if (specialAnimImage != null)
+    if (AnimLayerImage != null)
     {
-      specialAnimImage.color = new Color(1f, 1f, 1f, 0f);
-      specialAnimImage.rectTransform.sizeDelta = _specialAnimDefaultSize;
-      specialAnimImage.rectTransform.anchoredPosition3D = _specialAnimDefaultAnchoredPos;
+      AnimLayerImage.color = new Color(1f, 1f, 1f, 0f);
+      AnimLayerImage.rectTransform.sizeDelta = _specialAnimDefaultSize;
+      AnimLayerImage.rectTransform.anchoredPosition3D = _specialAnimDefaultAnchoredPos;
     }
     iconImage.color = new Color(1f, 1f, 1f, 1f);
     iconImage.enabled = true;
@@ -309,17 +319,17 @@ public class SlotIconView : MonoBehaviour
       }
     }
     activeanimation.StopAnimation();
-    if (specialAnim != null)
+    if (AnimLayerIA != null)
     {
-      specialAnim.StopAnimation();
-      specialAnim.ResetToFirstFrame();
-      specialAnim.AnimationSpeed = _specialAnimDefaultSpeed;
+      AnimLayerIA.StopAnimation();
+      AnimLayerIA.ResetToFirstFrame();
+      AnimLayerIA.AnimationSpeed = _specialAnimDefaultSpeed;
     }
-    if (specialAnimImage != null)
+    if (AnimLayerImage != null)
     {
-      specialAnimImage.color = new Color(1f, 1f, 1f, 0f);
-      specialAnimImage.rectTransform.sizeDelta = _specialAnimDefaultSize;
-      specialAnimImage.rectTransform.anchoredPosition3D = _specialAnimDefaultAnchoredPos;
+      AnimLayerImage.color = new Color(1f, 1f, 1f, 0f);
+      AnimLayerImage.rectTransform.sizeDelta = _specialAnimDefaultSize;
+      AnimLayerImage.rectTransform.anchoredPosition3D = _specialAnimDefaultAnchoredPos;
     }
     iconImage.color = new Color(1f, 1f, 1f, 1f);
     iconImage.enabled = true;

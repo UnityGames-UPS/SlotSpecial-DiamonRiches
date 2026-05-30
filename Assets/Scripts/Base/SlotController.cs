@@ -55,6 +55,10 @@ public class SlotController : MonoBehaviour
   [SerializeField] private float betweenLineDelay = 0.25f;
   private Coroutine WinLoopCorutine = null;
   private Coroutine scatterChainCoroutine = null;
+  // Tracks the lines currently being presented by WinPresentation so StopWinLoop can run the
+  // per-symbol cleanup (Drop, hide border/text, restore iconImage.enabled) instead of just
+  // killing the coroutine and leaving symbols stranded in animationOverlayParent.
+  private List<LineWin> _activeWinLines = null;
 
   [Header("Symbol Win Animations")]
   [SerializeField] private List<SymbolWinAnim> symbolWinAnims = new List<SymbolWinAnim>();
@@ -184,8 +188,18 @@ public class SlotController : MonoBehaviour
       }
     }
 
-    yield return alltweens[^1].WaitForCompletion();
+    foreach(Tween t in alltweens)
+      yield return t.WaitForCompletion();
+
+    // Snap reel columns to exactly RestY so the win presentation's Lift() reads a final
+    // world position regardless of any OutBack overshoot frame race.
+    for (int i = 0; i < Slot_Transform.Length; i++)
+      Slot_Transform[i].localPosition = new Vector2(Slot_Transform[i].localPosition.x, RestY);
     KillAllTweens();
+
+    // Let UI layout flush before any Lift samples world position.
+    Canvas.ForceUpdateCanvases();
+    yield return null;
   }
 
   // Walks the first FreeSpinTriggerColumns columns left to right. For each, waits until that
@@ -254,6 +268,22 @@ public class SlotController : MonoBehaviour
       StopCoroutine(scatterChainCoroutine);
       scatterChainCoroutine = null;
     }
+    // StopCoroutine doesn't run any cleanup, so symbols mid-PlayWinIteration stay parented to
+    // animationOverlayParent with their border / win text / overlay state intact. Drop them now.
+    if (_activeWinLines != null)
+    {
+      foreach (var lw in _activeWinLines) StopAnimateLineWin(lw);
+      _activeWinLines = null;
+    }
+    SetDarkOverlay(false);
+  }
+
+  // Called by SlotIconView.PlayWinIteration at the start of each iteration so that
+  // StopIconAnimation (invoked from StartSpin) can run StopAnim on every symbol whose
+  // animation coroutine is still in flight when a new spin begins.
+  internal void RegisterAnimatingIcon(SlotIconView icon)
+  {
+    if (icon != null && !animatingIcons.Contains(icon)) animatingIcons.Add(icon);
   }
 
   internal void StopIconAnimation()
@@ -272,6 +302,16 @@ public class SlotController : MonoBehaviour
       foreach (var item1 in item.slotImages)
       {
         item1.Reset();
+      }
+    }
+    // slotMatrix (visible window) may hold icon refs that are not present in allMatrix
+    // (off-screen buffer). Reset is idempotent, so cover both lists to guarantee that any
+    // symbol left mid-Lift from the previous spin's win loop is dropped and cleaned up.
+    foreach (var col in slotMatrix)
+    {
+      foreach (var icon in col.slotImages)
+      {
+        icon.Reset();
       }
     }
   }
@@ -310,7 +350,7 @@ public class SlotController : MonoBehaviour
   {
     alltweens[index].Kill();
     slotTransform.localPosition = new Vector2(slotTransform.localPosition.x, SpinTopY);
-    alltweens[index] = slotTransform.DOLocalMoveY(RestY, DurationFor(SpinTopY, RestY)).SetEase(Ease.Linear);
+    alltweens[index] = slotTransform.DOLocalMoveY(RestY, DurationFor(SpinTopY, RestY)).SetEase(Ease.OutBack, 0.9f);
   }
 
   private void KillAllTweens()
@@ -366,6 +406,7 @@ public class SlotController : MonoBehaviour
   // (no darkening), then an indefinite loop.
   IEnumerator WinPresentation(List<LineWin> lineWins)
   {
+    _activeWinLines = lineWins;
     yield return WaitForScatterChain();
 
     bool singleLine = lineWins.Count == 1;

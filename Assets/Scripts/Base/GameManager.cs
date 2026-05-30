@@ -449,7 +449,6 @@ public class GameManager : MonoBehaviour
 
   IEnumerator OnSpinEnd()
   {
-    yield return null;
     // audioController.Stop("spin_stop");
 
     // if (socketController.ResultData.payload.goldenPositions.Count > 0)
@@ -495,7 +494,7 @@ public class GameManager : MonoBehaviour
 
     if (socketController.ResultData.payload.lineWins.Count > 0)
     {
-      yield return new WaitForSecondsRealtime(1f);
+      // yield return new WaitForSecondsRealtime(1f);
       // "win" SFX now fires with the win-line animations (after the scatter animations), inside
       // SlotController's win presentation.
       if (isFreeSpin && freeSpinController != null)
