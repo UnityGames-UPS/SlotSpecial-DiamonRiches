@@ -128,6 +128,18 @@ public class UIManager : MonoBehaviour
   [SerializeField] private TMP_Text playerCurrentWinning;
   [SerializeField] private TMP_Text playerBalance;
 
+  [Header("Diamonds Payout UI")]
+  // 8 rows, index 0 = count 2, index 7 = count 9.
+  [SerializeField] private ImageAnimation diamondPayoutOverlayShine;
+  [SerializeField] private RectTransform[] diamondPayoutRowBg;
+  [SerializeField] private ImageAnimation[] diamondPayoutRowWinAnim;
+  [SerializeField] private RectTransform[] diamondPayoutRowWinAnimRect;
+  [SerializeField] private TMP_Text[] diamondPayoutRowText;
+  [SerializeField] private float diamondPayoutRowWinWidthDelta = 40f;
+  private Vector2[] _diamondPayoutRowBgDefaultSize;
+  private Vector2[] _diamondPayoutRowWinAnimDefaultSize;
+  private int _diamondActiveRowIndex = -1;
+
   internal Action<bool> ToggleAudio;
   internal Action<string> playButtonAudio;
 
@@ -145,6 +157,26 @@ public class UIManager : MonoBehaviour
     {
       Win_Text.transform.localScale = Vector3.zero;
       _winTextOriginalY = Win_Text.GetComponent<RectTransform>().anchoredPosition.y;
+    }
+
+    CacheDiamondPayoutDefaults();
+  }
+
+  private void CacheDiamondPayoutDefaults()
+  {
+    if (diamondPayoutRowBg != null)
+    {
+      _diamondPayoutRowBgDefaultSize = new Vector2[diamondPayoutRowBg.Length];
+      for (int i = 0; i < diamondPayoutRowBg.Length; i++)
+        if (diamondPayoutRowBg[i] != null)
+          _diamondPayoutRowBgDefaultSize[i] = diamondPayoutRowBg[i].sizeDelta;
+    }
+    if (diamondPayoutRowWinAnimRect != null)
+    {
+      _diamondPayoutRowWinAnimDefaultSize = new Vector2[diamondPayoutRowWinAnimRect.Length];
+      for (int i = 0; i < diamondPayoutRowWinAnimRect.Length; i++)
+        if (diamondPayoutRowWinAnimRect[i] != null)
+          _diamondPayoutRowWinAnimDefaultSize[i] = diamondPayoutRowWinAnimRect[i].sizeDelta;
     }
   }
 
@@ -255,6 +287,88 @@ public class UIManager : MonoBehaviour
     //     symbolText.symbolText[j].text = payoutText;
     //   }
     // }
+  }
+
+  internal void PlayDiamondPayoutShineOverlay()
+  {
+    if (diamondPayoutOverlayShine == null) return;
+    diamondPayoutOverlayShine.StopAnimation();
+    diamondPayoutOverlayShine.doLoopAnimation = false;
+    diamondPayoutOverlayShine.StartAnimation();
+  }
+
+  // Maps diamondCount (2..9) to row index (0..7) and plays the per-row glow looped, with the
+  // row's bg + win-anim rects widened by diamondPayoutRowWinWidthDelta. StopDiamondPayoutRowWin
+  // unwinds the resize.
+  internal void PlayDiamondPayoutRowWin(int diamondCount)
+  {
+    int idx = diamondCount - 2;
+    if (diamondPayoutRowWinAnim == null || idx < 0 || idx >= diamondPayoutRowWinAnim.Length) return;
+    StopDiamondPayoutRowWin();
+    _diamondActiveRowIndex = idx;
+
+    if (diamondPayoutRowBg != null && idx < diamondPayoutRowBg.Length && diamondPayoutRowBg[idx] != null)
+    {
+      var rt = diamondPayoutRowBg[idx];
+      rt.sizeDelta = _diamondPayoutRowBgDefaultSize[idx] + new Vector2(diamondPayoutRowWinWidthDelta, 0f);
+    }
+    if (diamondPayoutRowWinAnimRect != null && idx < diamondPayoutRowWinAnimRect.Length && diamondPayoutRowWinAnimRect[idx] != null)
+    {
+      var rt = diamondPayoutRowWinAnimRect[idx];
+      rt.sizeDelta = _diamondPayoutRowWinAnimDefaultSize[idx] + new Vector2(diamondPayoutRowWinWidthDelta, 0f);
+    }
+
+    var anim = diamondPayoutRowWinAnim[idx];
+    if (anim != null)
+    {
+      anim.StopAnimation();
+      anim.doLoopAnimation = true;
+      anim.gameObject.SetActive(true);
+      anim.StartAnimation();
+    }
+  }
+
+  internal void StopDiamondPayoutRowWin()
+  {
+    if (_diamondActiveRowIndex < 0) return;
+    int idx = _diamondActiveRowIndex;
+
+    if (diamondPayoutRowWinAnim != null && idx < diamondPayoutRowWinAnim.Length && diamondPayoutRowWinAnim[idx] != null)
+    {
+      var anim = diamondPayoutRowWinAnim[idx];
+      anim.StopAnimation();
+      anim.ResetToFirstFrame();
+      anim.gameObject.SetActive(false);
+    }
+    if (diamondPayoutRowBg != null && idx < diamondPayoutRowBg.Length && diamondPayoutRowBg[idx] != null
+        && _diamondPayoutRowBgDefaultSize != null && idx < _diamondPayoutRowBgDefaultSize.Length)
+    {
+      diamondPayoutRowBg[idx].sizeDelta = _diamondPayoutRowBgDefaultSize[idx];
+    }
+    if (diamondPayoutRowWinAnimRect != null && idx < diamondPayoutRowWinAnimRect.Length && diamondPayoutRowWinAnimRect[idx] != null
+        && _diamondPayoutRowWinAnimDefaultSize != null && idx < _diamondPayoutRowWinAnimDefaultSize.Length)
+    {
+      diamondPayoutRowWinAnimRect[idx].sizeDelta = _diamondPayoutRowWinAnimDefaultSize[idx];
+    }
+    _diamondActiveRowIndex = -1;
+  }
+
+  internal void RefreshDiamondPayoutTexts()
+  {
+    if (diamondPayoutRowText == null) return;
+    var payout = socketController?.InitData?.features?.diamondPayout;
+    var bets = socketController?.InitLineBetData?.bets;
+    if (payout == null || bets == null || gameManager == null) return;
+    if (gameManager.betCounter < 0 || gameManager.betCounter >= bets.Count) return;
+    double lineBet = bets[gameManager.betCounter];
+
+    for (int i = 0; i < diamondPayoutRowText.Length; i++)
+    {
+      if (diamondPayoutRowText[i] == null) continue;
+      int count = i + 2;
+      if (!payout.TryGetValue(count, out int mult)) { diamondPayoutRowText[i].text = ""; continue; }
+      diamondPayoutRowText[i].text = TextFormatter.FormatMoney(mult * lineBet);
+    }
   }
 
   private void CallOnExitFunction()

@@ -3,6 +3,7 @@ using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
 
+[RequireComponent(typeof(Image))]
 public class ImageAnimation : MonoBehaviour
 {
   public enum ImageState
@@ -51,6 +52,14 @@ public class ImageAnimation : MonoBehaviour
   private Tween _alphaTween;
   private List<Sprite> _originalTextureArray;
   private bool _originalDoLoop;
+
+  void OnValidate()
+  {
+    if(rendererDelegate == null)
+    {
+      rendererDelegate = GetComponent<Image>();
+    } 
+  }
 
   private void Awake()
   {

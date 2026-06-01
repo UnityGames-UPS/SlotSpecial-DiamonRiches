@@ -129,6 +129,7 @@ public class GameManager : MonoBehaviour
     {
       uIManager.PopulateSymbolsPayout(socketController.InitSymbolData);
     }
+    uIManager.RefreshDiamondPayoutTexts();
   }
 
   void ExecuteSpin()
@@ -262,7 +263,6 @@ public class GameManager : MonoBehaviour
   }
   IEnumerator SpinRoutine()
   {
-    // isSpinning = true; // was set by OnSpinStart(), which is currently commented out; without this StopSpin()'s WaitUntil(!isSpinning) returns instantly and resets immediateStop before it can take effect
     ToggleButtonGrp(false);
     bool start = OnSpinStart();
 
@@ -384,6 +384,10 @@ public class GameManager : MonoBehaviour
   bool OnSpinStart()
   {
     uIManager.ResetWinAnimation();
+    // Tear down any leftover winning-row anim from the previous spin so a click mid-presentation
+    // resets the row immediately (size/loop), then fire the one-shot shine across all rows.
+    uIManager.StopDiamondPayoutRowWin();
+    uIManager.PlayDiamondPayoutShineOverlay();
 
     if (currentBalance < currentTotalBet && !isFreeSpin)
     {
@@ -432,7 +436,7 @@ public class GameManager : MonoBehaviour
     int waitFor = 10;
     for (int i = 0; i < waitFor; i++)
     {
-      if (immediateStop)
+      if (immediateStop && i>7)
       {
         break;
       }
@@ -491,6 +495,24 @@ public class GameManager : MonoBehaviour
     // {
     //   uIManager.TriggerWinAnimation(socketController.ResultData.payload.winAmount, currentTotalBet);
     // }
+
+    // Diamond feature: check before line-wins so the looped icon animations and the payout row
+    // glow start in parallel with the line-win presentation that follows. Server always sends
+    // diamondCount + diamondPositions (even for the single-diamond idle case).
+    var feats = socketController.ResultData.payload.featureWins;
+    if (feats != null && feats.diamondPositions != null && feats.diamondPositions.Count > 0)
+    {
+      if (feats.diamondCount >= 2)
+      {
+        slotManager.StartDiamondTriggered(feats.diamondPositions);
+        uIManager.PlayDiamondPayoutRowWin(feats.diamondCount);
+      }
+      else if (feats.diamondCount == 1
+               && SlotController.TryParseDiamondPos(feats.diamondPositions[0], out int idleRow, out int idleCol))
+      {
+        StartCoroutine(slotManager.PlayDiamondIdle(idleRow, idleCol));
+      }
+    }
 
     if (socketController.ResultData.payload.lineWins.Count > 0)
     {
@@ -657,6 +679,7 @@ public class GameManager : MonoBehaviour
     LineBet_Text.text = TextFormatter.FormatMoney(socketController.InitLineBetData.bets[betCounter]);
     UpdateBetButtonsInteractable();
     uIManager.PopulateSymbolsPayout(socketController.InitSymbolData);
+    uIManager.RefreshDiamondPayoutTexts();
   }
 
   void UpdateBetButtonsInteractable()

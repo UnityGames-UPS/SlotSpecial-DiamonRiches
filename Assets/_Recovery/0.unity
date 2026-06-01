@@ -6390,7 +6390,7 @@ MonoBehaviour:
   UiManager: {fileID: 377874625}
   isResultdone: 0
   JSManager: {fileID: 500036493}
-  testToken: 15cdf937e8b14c5e8117c2b30c98b150
+  testToken: 6990f4fb5bdf4472ae139a5cf250e3e0
 --- !u!114 &500036493
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14046,12 +14046,12 @@ MonoBehaviour:
   - {fileID: 21300000, guid: cfa8918a850e64f58b67a14a840cef66, type: 3}
   rendererDelegate: {fileID: 1065207595}
   useSharedMaterial: 1
-  doLoopAnimation: 0
+  doLoopAnimation: 1
   currentAnimationState: 0
-  AnimationSpeed: 70
+  AnimationSpeed: 51
   delayBetweenLoop: 0
   StartOnAwakeDelay: 0
-  StartOnAwake: 0
+  StartOnAwake: 1
   DestroyOnCompletion: 0
   isplaying: 0
   OriginalSprite: {fileID: 21300000, guid: 80f21af9b1ad5454094e16b5ca9c5ebd, type: 3}
@@ -30246,7 +30246,7 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 32adb22a2354e4cb7a1b458d42f63fd5, type: 3}
   - {fileID: 21300000, guid: e0b059fc07abe4f8aad5d4d64db0b0e1, type: 3}
   - {fileID: 21300000, guid: f8e2fa06123d74c0eae6bb9e36e36ef7, type: 3}
-  freeSpinSymbolAnimSpeed: 15
+  freeSpinSymbolAnimSpeed: 11
   diamondIdleSprites:
   - {fileID: 21300000, guid: 40fe8e526b9194df184f2bb245465125, type: 3}
   - {fileID: 21300000, guid: c5cc4fd6862314072853b1197e339330, type: 3}
@@ -30264,7 +30264,7 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 5996f3fb2909d4f6d9b6bb6c5b7881bc, type: 3}
   - {fileID: 21300000, guid: e9201e924e3a14c138134b31d2e0eb21, type: 3}
   - {fileID: 21300000, guid: 0a914bba9392c4196a1deb5806fcd665, type: 3}
-  diamondIdleSpeed: 11
+  diamondIdleSpeed: 9
   diamondTriggeredSprites:
   - {fileID: 21300000, guid: 87a331d189db143a6a6ca15f7ed7dfed, type: 3}
   - {fileID: 21300000, guid: e96370a52ee074b04be72f3ad786fdda, type: 3}
@@ -30323,7 +30323,7 @@ MonoBehaviour:
   - {fileID: 21300000, guid: fecc8d1d3df9845e6aed64104cccc4ea, type: 3}
   - {fileID: 21300000, guid: 12587cfff28a84db2b5ecfa4595a1ba7, type: 3}
   - {fileID: 21300000, guid: 06a2a9dbc4e084af29fda08455f05d28, type: 3}
-  diamondTriggeredSpeed: 49
+  diamondTriggeredSpeed: 47
   reelSpeed: 8000
 --- !u!1 &2054686481
 GameObject:

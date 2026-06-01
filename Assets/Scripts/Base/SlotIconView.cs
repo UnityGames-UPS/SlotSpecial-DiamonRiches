@@ -224,6 +224,38 @@ public class SlotIconView : MonoBehaviour
     yield return PlayOverlaySequence(sprites, speed);
   }
 
+  // Single-diamond idle: one-shot overlay at default AnimLayer size. Lifts to overlayParent so
+  // it stays above siblings, drops back when finished. Non-blocking from the caller's perspective —
+  // they StartCoroutine without yielding.
+  internal IEnumerator PlayDiamondIdleAnim(SlotController controller, Transform overlayParent, List<Sprite> sprites, float speed)
+  {
+    if (sprites == null || sprites.Count == 0) yield break;
+    controller.RegisterAnimatingIcon(this);
+    Lift(overlayParent);
+    yield return PlayOverlaySequence(sprites, speed);
+    Drop();
+  }
+
+  // Multi-diamond trigger: looped overlay at +100 width/height. Yields forever — caller fires it
+  // and forgets; teardown happens via StopAnim/Reset on next spin (which restores
+  // _specialAnimDefaultSize and Drops the icon).
+  internal IEnumerator PlayDiamondTriggeredLoop(SlotController controller, Transform overlayParent, List<Sprite> sprites, float speed)
+  {
+    if (sprites == null || sprites.Count == 0 || AnimLayerIA == null || AnimLayerImage == null) yield break;
+    controller.RegisterAnimatingIcon(this);
+    Lift(overlayParent);
+    AnimLayerImage.rectTransform.sizeDelta = _specialAnimDefaultSize + new Vector2(100f, 100f);
+    iconImage.enabled = false;
+    AnimLayerImage.color = new Color(1f, 1f, 1f, 1f);
+    AnimLayerIA.AnimationSpeed = speed;
+    AnimLayerIA.holdAtLastFrame = false;
+    AnimLayerIA.gameObject.SetActive(true);
+    AnimLayerIA.PlaySequence(sprites, loop: true);
+    // Keep coroutine alive so the icon stays registered in animatingIcons until StopIconAnimation
+    // is called on the next spin (which invokes StopAnim and unwinds the +100 size).
+    while (AnimLayerIA != null && AnimLayerIA.isplaying) yield return null;
+  }
+
   IEnumerator PlayOverlaySequence(List<Sprite> sprites, float speed)
   {
     if (AnimLayerIA == null || AnimLayerImage == null)

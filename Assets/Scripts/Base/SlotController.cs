@@ -71,6 +71,14 @@ public class SlotController : MonoBehaviour
   [SerializeField] private List<Sprite> freeSpinSymbolAnimSprites = new List<Sprite>();
   [SerializeField] private float freeSpinSymbolAnimSpeed = 5f;
 
+  [Header("Diamond Symbol Animations")]
+  [SerializeField] private List<Sprite> diamondIdleSprites = new List<Sprite>();
+  [SerializeField] private float diamondIdleSpeed = 5f;
+  [SerializeField] private List<Sprite> diamondTriggeredSprites = new List<Sprite>();
+  [SerializeField] private float diamondTriggeredSpeed = 5f;
+
+  private const int DiamondSymbolId = 7;
+
   // Free-spin (scatter) symbol id. It does not contribute to win lines; it is animated on reel
   // stop, column by column. Free spins trigger when each of the first FreeSpinTriggerColumns
   // columns holds at least one of these symbols.
@@ -363,6 +371,8 @@ public class SlotController : MonoBehaviour
   }
   #endregion
 
+  internal static bool TryParseDiamondPos(string pos, out int row, out int col) => TryParsePosition(pos, out row, out col);
+
   // Parses a "row,col" position string from the server lineWins payload.
   static bool TryParsePosition(string pos, out int row, out int col)
   {
@@ -529,6 +539,30 @@ public class SlotController : MonoBehaviour
       if (row < 0 || row >= slotMatrix[col].slotImages.Count) continue;
 
       slotMatrix[col].slotImages[row].ResetLineAnim();
+    }
+  }
+
+  // Single-diamond idle path: caller (GameManager.OnSpinEnd) starts this and does not yield.
+  internal IEnumerator PlayDiamondIdle(int row, int col)
+  {
+    if (col < 0 || col >= slotMatrix.Count) yield break;
+    if (row < 0 || row >= slotMatrix[col].slotImages.Count) yield break;
+    yield return slotMatrix[col].slotImages[row].PlayDiamondIdleAnim(
+      this, animationOverlayParent, diamondIdleSprites, diamondIdleSpeed);
+  }
+
+  // Diamond-trigger path: fires each diamond's looped, oversized overlay. Returns immediately;
+  // the loops run until StartSpin -> StopIconAnimation tears them down on the next spin.
+  internal void StartDiamondTriggered(List<string> diamondPositions)
+  {
+    if (diamondPositions == null) return;
+    for (int i = 0; i < diamondPositions.Count; i++)
+    {
+      if (!TryParsePosition(diamondPositions[i], out int row, out int col)) continue;
+      if (col < 0 || col >= slotMatrix.Count) continue;
+      if (row < 0 || row >= slotMatrix[col].slotImages.Count) continue;
+      StartCoroutine(slotMatrix[col].slotImages[row].PlayDiamondTriggeredLoop(
+        this, animationOverlayParent, diamondTriggeredSprites, diamondTriggeredSpeed));
     }
   }
 
