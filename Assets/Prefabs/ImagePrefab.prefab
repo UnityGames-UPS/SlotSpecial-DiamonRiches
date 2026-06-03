@@ -656,7 +656,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 04ffafb9595d4486e8a54484d0233c79, type: 3}
+  m_Sprite: {fileID: 21300000, guid: b3e9b8b99b3b849c1bd6ca195c6752e2, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -679,23 +679,50 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ImageAnimation
   textureArray:
-  - {fileID: 21300000, guid: 04ffafb9595d4486e8a54484d0233c79, type: 3}
-  - {fileID: 21300000, guid: aeea86a12bd5647e6941d7a15aeef9b7, type: 3}
-  - {fileID: 21300000, guid: 0b90775c8b87d4be7b011911be76fac3, type: 3}
-  - {fileID: 21300000, guid: ef711f57c109240b199393143e8693f6, type: 3}
-  - {fileID: 21300000, guid: cf244710bd7ef4bc6a6f4a582d90db3a, type: 3}
-  - {fileID: 21300000, guid: 13d63b08ae2b44c4b966fd1d63e8f2f5, type: 3}
-  - {fileID: 21300000, guid: c4a2da8ff64bb405eb24b6676d7f808f, type: 3}
-  - {fileID: 21300000, guid: faf920d8604654f859d76b901d03c444, type: 3}
-  - {fileID: 21300000, guid: f755daa6427e34d9480ec42a516de127, type: 3}
-  - {fileID: 21300000, guid: 014949d88aac043419c6746c7151c5a0, type: 3}
-  - {fileID: 21300000, guid: 9b92c821e5d4643daaafcfbb7d638c10, type: 3}
-  - {fileID: 21300000, guid: 67875cc6bc641420d9adb726f922eada, type: 3}
+  - {fileID: 21300000, guid: b3e9b8b99b3b849c1bd6ca195c6752e2, type: 3}
+  - {fileID: 21300000, guid: b3e49bc292c8b4152ab89565a5d4078f, type: 3}
+  - {fileID: 21300000, guid: d0f31179d7dfc4fc09b94dad3ed6c5ce, type: 3}
+  - {fileID: 21300000, guid: 6c9165a55fc50474dae39c3382d49e60, type: 3}
+  - {fileID: 21300000, guid: 38cdd2de33a7e4337b733f7c12c453b9, type: 3}
+  - {fileID: 21300000, guid: cf61bb375092d4125888d67debe0c914, type: 3}
+  - {fileID: 21300000, guid: 7c722994946dc4bda9c6a04327ee78de, type: 3}
+  - {fileID: 21300000, guid: cd4bdd6ae877a481a96cebe9294676c8, type: 3}
+  - {fileID: 21300000, guid: b27111b6369f94ef28b43e18f20fc11d, type: 3}
+  - {fileID: 21300000, guid: caf1b4abe30944485a52b2c6227609d1, type: 3}
+  - {fileID: 21300000, guid: f2ea63ded3bb4446783a56c02e29fa5d, type: 3}
+  - {fileID: 21300000, guid: 78cc433f57b454469801e5030057cb99, type: 3}
+  - {fileID: 21300000, guid: 41c5024e9cb8f4e5ebba9288e18be293, type: 3}
+  - {fileID: 21300000, guid: 9fd3f1fb055434a309e4131ac6e40764, type: 3}
+  - {fileID: 21300000, guid: 285c304fd810142079f8c1b73ce6222a, type: 3}
+  - {fileID: 21300000, guid: 384687b75aed546e2afdb833f9631cff, type: 3}
+  - {fileID: 21300000, guid: cff4502902ba64b7faeae37d775c2b6b, type: 3}
+  - {fileID: 21300000, guid: 2eeacc4e16e4d4832a8e14395e6fd5e6, type: 3}
+  - {fileID: 21300000, guid: ad8e2fe7e22564edc923c7f57d2a0287, type: 3}
+  - {fileID: 21300000, guid: fe7ef280a4c684c46bbdff99b4454760, type: 3}
+  - {fileID: 21300000, guid: d2f52fa5dab9d4f738d53822bd991448, type: 3}
+  - {fileID: 21300000, guid: f16393b6688404c479fdfa3d2c8bd4b8, type: 3}
+  - {fileID: 21300000, guid: cd7573481b2874f2d9fe13789177cf8b, type: 3}
+  - {fileID: 21300000, guid: 4b04273674b4a4d4eb7c74b58e0f5da9, type: 3}
+  - {fileID: 21300000, guid: 0b5b990f6b29e484e9701d52d2c42a48, type: 3}
+  - {fileID: 21300000, guid: 53b30ac26fb3d4d6bb072e72d53d69e7, type: 3}
+  - {fileID: 21300000, guid: 384be137cdc774b75a3d759015f33b92, type: 3}
+  - {fileID: 21300000, guid: ee3dac46b8bef48c9aff91902432a5d4, type: 3}
+  - {fileID: 21300000, guid: 85a50ad77c2e54a32907787af4ad7561, type: 3}
+  - {fileID: 21300000, guid: c39a3efd9093b4c50a7fb0ea0bd136e7, type: 3}
+  - {fileID: 21300000, guid: cccaaf2681ab248bab50346269535f14, type: 3}
+  - {fileID: 21300000, guid: 3ae53273cd9ed4328b027fd93d74cf44, type: 3}
+  - {fileID: 21300000, guid: 0a427f347ff0244fcb7fd2b64a42bba4, type: 3}
+  - {fileID: 21300000, guid: 62cad295ee75e4ae0bf6af83c8dc9b2d, type: 3}
+  - {fileID: 21300000, guid: d649ab865db704cdc9e6fcb6f6ce9e01, type: 3}
+  - {fileID: 21300000, guid: 4c51e73d5ad7e49b2a62fc8fd5634d04, type: 3}
+  - {fileID: 21300000, guid: b99a77b8292dc482ba02d445cfe96853, type: 3}
+  - {fileID: 21300000, guid: c567298ed9c414bcdb0962a1f06d4fc0, type: 3}
+  - {fileID: 21300000, guid: 3c376397d6eee45338cede8300214cdf, type: 3}
   rendererDelegate: {fileID: 507285292166001994}
   useSharedMaterial: 1
   doLoopAnimation: 0
   currentAnimationState: 0
-  AnimationSpeed: 8
+  AnimationSpeed: 36
   delayBetweenLoop: 0
   StartOnAwakeDelay: 0
   StartOnAwake: 0

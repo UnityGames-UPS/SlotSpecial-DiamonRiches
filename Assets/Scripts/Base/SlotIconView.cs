@@ -175,9 +175,9 @@ public class SlotIconView : MonoBehaviour
     }
 
     borderAnimation.gameObject.SetActive(true);
-    borderAnimation.doLoopAnimation = false;
+    borderAnimation.doLoopAnimation = true;
     borderAnimation.delayBetweenLoop = 0f;
-    // borderAnimation.StartAnimation();
+    borderAnimation.StartAnimation();
 
     // iconAnim?.Kill();
     // iconImage.transform.localScale = Vector3.one;
