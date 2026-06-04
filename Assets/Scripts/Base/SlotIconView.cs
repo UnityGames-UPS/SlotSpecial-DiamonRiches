@@ -35,6 +35,8 @@ public class SlotIconView : MonoBehaviour
   private Vector3 _cachedLocalPosition;
   private Vector2 _specialAnimDefaultSize;
   private Vector3 _specialAnimDefaultAnchoredPos;
+  private Vector2 _iconImageDefaultSize;
+  private Vector3 _iconImageDefaultAnchoredPos;
   private Vector2 _bgDefaultSize;
   private Vector3 _bgDefaultAnchoredPos;
   private float _bgDefaultSpeed;
@@ -47,11 +49,34 @@ public class SlotIconView : MonoBehaviour
   static readonly Vector2 WildBgSize = new Vector2(320f, 328.472f);
   static readonly Vector3 WildBgPos = Vector3.zero;
 
+  const int WildId = 5;
+  const int GoldAId = 0;
+  const int GoldBId = 1;
+  static readonly Vector2 WildWinSizeBump = new Vector2(250f, 250f);
+  [SerializeField] private float wildYOffset = 0f;
+  [SerializeField] private Vector2 goldSizeBump = Vector2.zero;
+  [SerializeField] private float goldYOffset = 0f;
+
+  Vector2 SizeBumpFor(int symbolId) =>
+    symbolId == WildId ? WildWinSizeBump :
+    (symbolId == GoldAId || symbolId == GoldBId) ? goldSizeBump :
+    Vector2.zero;
+
+  float YOffsetFor(int symbolId) =>
+    symbolId == WildId ? wildYOffset :
+    (symbolId == GoldAId || symbolId == GoldBId) ? goldYOffset :
+    0f;
+
   void Awake()
   {
     _cachedParent = transform.parent;
     _cachedSiblingIndex = transform.GetSiblingIndex();
     _cachedLocalPosition = transform.localPosition;
+    if (iconImage != null)
+    {
+      _iconImageDefaultSize = iconImage.rectTransform.sizeDelta;
+      _iconImageDefaultAnchoredPos = iconImage.rectTransform.anchoredPosition3D;
+    }
     if (AnimLayerImage != null)
     {
       _specialAnimDefaultSize = AnimLayerImage.rectTransform.sizeDelta;
@@ -109,6 +134,8 @@ public class SlotIconView : MonoBehaviour
   {
     iconImage.sprite = image;
     id = ID;
+    iconImage.rectTransform.sizeDelta = _iconImageDefaultSize + SizeBumpFor(ID);
+    iconImage.rectTransform.anchoredPosition3D = _iconImageDefaultAnchoredPos + new Vector3(0f, YOffsetFor(ID), 0f);
   }
 
   internal void Reset()
@@ -156,6 +183,12 @@ public class SlotIconView : MonoBehaviour
       AnimLayerImage.rectTransform.sizeDelta = _specialAnimDefaultSize;
       AnimLayerImage.rectTransform.anchoredPosition3D = _specialAnimDefaultAnchoredPos;
     }
+    // Spin-start cleanup: clear iconImage to absolute defaults. SetIcon (via PopulateSlotMatrix
+    // and ShuffleMatrix) re-applies the per-id bump for the new symbol. Keeping the bump here
+    // based on the lingering wild id left the next spin's reel symbols visibly offset because
+    // off-screen positions never get a fresh SetIcon to clear it.
+    iconImage.rectTransform.sizeDelta = _iconImageDefaultSize;
+    iconImage.rectTransform.anchoredPosition3D = _iconImageDefaultAnchoredPos;
     iconImage.color = new Color(1f, 1f, 1f, 1f);
     iconImage.enabled = true;
 
@@ -167,6 +200,12 @@ public class SlotIconView : MonoBehaviour
   {
     controller.RegisterAnimatingIcon(this);
     Lift(overlayParent);
+
+    if (AnimLayerImage != null)
+    {
+      AnimLayerImage.rectTransform.sizeDelta = _specialAnimDefaultSize + SizeBumpFor(id);
+      AnimLayerImage.rectTransform.anchoredPosition3D = _specialAnimDefaultAnchoredPos + new Vector3(0f, YOffsetFor(id), 0f);
+    }
 
     if (showWinLineText)
     {
@@ -323,6 +362,8 @@ public class SlotIconView : MonoBehaviour
       AnimLayerImage.rectTransform.sizeDelta = _specialAnimDefaultSize;
       AnimLayerImage.rectTransform.anchoredPosition3D = _specialAnimDefaultAnchoredPos;
     }
+    iconImage.rectTransform.sizeDelta = _iconImageDefaultSize + SizeBumpFor(id);
+    iconImage.rectTransform.anchoredPosition3D = _iconImageDefaultAnchoredPos + new Vector3(0f, YOffsetFor(id), 0f);
     iconImage.color = new Color(1f, 1f, 1f, 1f);
     iconImage.enabled = true;
     if (WinAmountText.gameObject.activeSelf)
@@ -363,6 +404,10 @@ public class SlotIconView : MonoBehaviour
       AnimLayerImage.rectTransform.sizeDelta = _specialAnimDefaultSize;
       AnimLayerImage.rectTransform.anchoredPosition3D = _specialAnimDefaultAnchoredPos;
     }
+    // Same rationale as Reset(): clear to absolute defaults at spin-start so a lingering wild
+    // id can't leave the next spin's reels visibly shifted at that position.
+    iconImage.rectTransform.sizeDelta = _iconImageDefaultSize;
+    iconImage.rectTransform.anchoredPosition3D = _iconImageDefaultAnchoredPos;
     iconImage.color = new Color(1f, 1f, 1f, 1f);
     iconImage.enabled = true;
   }

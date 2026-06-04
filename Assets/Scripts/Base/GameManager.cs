@@ -331,6 +331,7 @@ public class GameManager : MonoBehaviour
     immediateStop = false;
     if (isFreeSpin) uIManager.ResetWinAnimation();
     yield return OnSpin();
+    // yield return new WaitForSecondsRealtime(0.5f);
     yield return OnSpinEnd();
   }
 

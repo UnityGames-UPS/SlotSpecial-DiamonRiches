@@ -77,6 +77,9 @@ MonoBehaviour:
   winPulsePeak: 1.15
   winPulseDuration: 1.2
   previewAnimations: 0
+  wildYOffset: 15
+  goldSizeBump: {x: 200, y: 200}
+  goldYOffset: 0
 --- !u!114 &5544285252877283968
 MonoBehaviour:
   m_ObjectHideFlags: 0
