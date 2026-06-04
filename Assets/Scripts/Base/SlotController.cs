@@ -59,6 +59,12 @@ public class SlotController : MonoBehaviour
   // per-symbol cleanup (Drop, hide border/text, restore iconImage.enabled) instead of just
   // killing the coroutine and leaving symbols stranded in animationOverlayParent.
   private List<LineWin> _activeWinLines = null;
+  // Per-icon win iteration coroutines started by PlaySyncedPass / SingleLineLoop / PerLineLoop.
+  // StopCoroutine(WinLoopCorutine) only kills the outer presentation; without tracking these,
+  // the inner PlayWinIteration coroutines stay suspended at PlayPulse / PlayOverlaySequence and
+  // resume *after* StartSpin's synchronous teardown — racing the new spin and leaving icons in
+  // half-cleaned-up states (stranded on the overlay, sprite stale, position offset).
+  private List<Coroutine> _activeWinIterCoroutines = new List<Coroutine>();
 
   [Header("Symbol Win Animations")]
   [SerializeField] private List<SymbolWinAnim> symbolWinAnims = new List<SymbolWinAnim>();
@@ -101,10 +107,10 @@ public class SlotController : MonoBehaviour
   internal IEnumerator StartSpin()
   {
     StopWinLoop();
+    StopIconAnimation();
     SetDarkOverlay(false);
     KillAllTweens();
     ResetAllIcons();
-    StopIconAnimation();
 
     List<Tween> initTweens = new();
     audioController.Play("spin_start");
@@ -276,6 +282,13 @@ public class SlotController : MonoBehaviour
       StopCoroutine(scatterChainCoroutine);
       scatterChainCoroutine = null;
     }
+    // Kill any inner PlayWinIteration coroutines spawned by PlaySyncedPass / SingleLineLoop /
+    // PerLineLoop. StopCoroutine on the outer presentation doesn't reach these.
+    for (int i = 0; i < _activeWinIterCoroutines.Count; i++)
+    {
+      if (_activeWinIterCoroutines[i] != null) StopCoroutine(_activeWinIterCoroutines[i]);
+    }
+    _activeWinIterCoroutines.Clear();
     // StopCoroutine doesn't run any cleanup, so symbols mid-PlayWinIteration stay parented to
     // animationOverlayParent with their border / win text / overlay state intact. Drop them now.
     if (_activeWinLines != null)
@@ -292,6 +305,15 @@ public class SlotController : MonoBehaviour
   internal void RegisterAnimatingIcon(SlotIconView icon)
   {
     if (icon != null && !animatingIcons.Contains(icon)) animatingIcons.Add(icon);
+  }
+
+  // Called when an animation completes naturally (e.g. diamond idle finishes and Drops itself).
+  // Without this, the icon stays in the list until the next StopIconAnimation, which keeps a
+  // stale reference around — and any teardown that iterates the list (StopAnim → ForceRestoreToRest)
+  // hits it unnecessarily on the next spin.
+  internal void UnregisterAnimatingIcon(SlotIconView icon)
+  {
+    if (icon != null) animatingIcons.Remove(icon);
   }
 
   internal void StopIconAnimation()
@@ -461,7 +483,7 @@ public class SlotController : MonoBehaviour
     }
 
     var seen = new HashSet<(int, int)>();
-    var running = new List<Coroutine>();
+    _activeWinIterCoroutines.Clear();
     foreach (var lineWin in lineWins)
     {
       for (int i = 0; i < lineWin.positions.Count; i++)
@@ -472,11 +494,12 @@ public class SlotController : MonoBehaviour
         if (!seen.Add((col, row))) continue;
 
         bool show = midPerLine.TryGetValue((col, row), out double payout);
-        running.Add(StartCoroutine(slotMatrix[col].slotImages[row].PlayWinIteration(this, animationOverlayParent, show, show ? payout : 0, isSyncedPass: true)));
+        _activeWinIterCoroutines.Add(StartCoroutine(slotMatrix[col].slotImages[row].PlayWinIteration(this, animationOverlayParent, show, show ? payout : 0, isSyncedPass: true)));
       }
     }
-    foreach (var co in running)
-      if (co != null) yield return co;
+    for (int i = 0; i < _activeWinIterCoroutines.Count; i++)
+      if (_activeWinIterCoroutines[i] != null) yield return _activeWinIterCoroutines[i];
+    _activeWinIterCoroutines.Clear();
   }
 
   IEnumerator SingleLineLoop(LineWin lineWin)
@@ -485,7 +508,7 @@ public class SlotController : MonoBehaviour
     {
       yield return new WaitForSecondsRealtime(betweenLineDelay);
 
-      var running = new List<Coroutine>();
+      _activeWinIterCoroutines.Clear();
       int count = lineWin.positions.Count;
       int midIndex = count / 2;
       for (int i = 0; i < count; i++)
@@ -495,10 +518,11 @@ public class SlotController : MonoBehaviour
         if (row < 0 || row >= slotMatrix[col].slotImages.Count) continue;
         bool show = i == midIndex && slotMatrix[col].slotImages[row].id != WildId;
         audioController.Play("blink");
-        running.Add(StartCoroutine(slotMatrix[col].slotImages[row].PlayWinIteration(this, animationOverlayParent, show, show ? lineWin.payout : 0, isSyncedPass: false)));
+        _activeWinIterCoroutines.Add(StartCoroutine(slotMatrix[col].slotImages[row].PlayWinIteration(this, animationOverlayParent, show, show ? lineWin.payout : 0, isSyncedPass: false)));
       }
-      foreach (var co in running)
-        if (co != null) yield return co;
+      for (int i = 0; i < _activeWinIterCoroutines.Count; i++)
+        if (_activeWinIterCoroutines[i] != null) yield return _activeWinIterCoroutines[i];
+      _activeWinIterCoroutines.Clear();
     }
   }
 
@@ -508,7 +532,7 @@ public class SlotController : MonoBehaviour
     {
       foreach (var lineWin in lineWins)
       {
-        var running = new List<Coroutine>();
+        _activeWinIterCoroutines.Clear();
         int count = lineWin.positions.Count;
         int midIndex = count / 2;
         for (int i = 0; i < count; i++)
@@ -519,10 +543,11 @@ public class SlotController : MonoBehaviour
           bool show = i == midIndex && slotMatrix[col].slotImages[row].id != WildId;
           double payout = show ? lineWin.payout : 0;
           audioController.Play("blink");
-          running.Add(StartCoroutine(slotMatrix[col].slotImages[row].PlayWinIteration(this, animationOverlayParent, show, payout, isSyncedPass: false)));
+          _activeWinIterCoroutines.Add(StartCoroutine(slotMatrix[col].slotImages[row].PlayWinIteration(this, animationOverlayParent, show, payout, isSyncedPass: false)));
         }
-        foreach (var c in running)
-          if (c != null) yield return c;
+        for (int i = 0; i < _activeWinIterCoroutines.Count; i++)
+          if (_activeWinIterCoroutines[i] != null) yield return _activeWinIterCoroutines[i];
+        _activeWinIterCoroutines.Clear();
 
         yield return new WaitForSecondsRealtime(betweenLineDelay);
         StopAnimateLineWin(lineWin);
