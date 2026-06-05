@@ -69,12 +69,11 @@ MonoBehaviour:
   iconImage: {fileID: 5622765294730963643}
   bgImage: {fileID: 2867998888588405072}
   borderAnimation: {fileID: 8671164200902303335}
-  activeanimation: {fileID: 5544285252877283968}
   WinAmountText: {fileID: 5664113098290640849}
   AnimLayerImage: {fileID: 8750764327487095929}
   AnimLayerIA: {fileID: 1222198789863562110}
-  winPulsePeak: 1.15
-  winPulseDuration: 1.2
+  winPulsePeak: 1.05
+  winPulseDuration: 1.8
   previewAnimations: 0
   wildYOffset: 15
   goldSizeBump: {x: 200, y: 200}
@@ -220,7 +219,7 @@ MonoBehaviour:
     bottomLeft: {r: 1, g: 1, b: 1, a: 1}
     bottomRight: {r: 1, g: 1, b: 1, a: 1}
   m_fontColorGradientPreset: {fileID: 0}
-  m_spriteAsset: {fileID: 11400000, guid: 0cb444ac2188d4547b40227c14d2f1e6, type: 2}
+  m_spriteAsset: {fileID: 11400000, guid: 21b765eaf90864a05b6c56a246b1b7ba, type: 2}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
   m_TextStyleHashCode: -1183493901
@@ -228,17 +227,17 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 54.37
-  m_fontSizeBase: 36
+  m_fontSize: 73.3
+  m_fontSizeBase: 73.3
   m_fontWeight: 400
-  m_enableAutoSizing: 1
+  m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 54.37
   m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
-  m_characterSpacing: -3.7
+  m_characterSpacing: -5.99
   m_characterHorizontalScale: 1
   m_wordSpacing: 0
   m_lineSpacing: 0

@@ -34,6 +34,7 @@ public class GameManager : MonoBehaviour
   [SerializeField] private Button AutoSpinStop_Button;
   [SerializeField] private GameObject AutoSpinGlow;
   [SerializeField] internal bool isAutoSpin;
+  [SerializeField] private float autoSpinDelay = 1.5f;
 
   [Header("For Features")]
   [SerializeField] internal ImageAnimation ThreeInARow;
@@ -129,7 +130,7 @@ public class GameManager : MonoBehaviour
     {
       uIManager.PopulateSymbolsPayout(socketController.InitSymbolData);
     }
-    uIManager.RefreshDiamondPayoutTexts();
+    uIManager.RefreshDiamondPayoutTexts(currentTotalBet);
   }
 
   void ExecuteSpin()
@@ -218,7 +219,7 @@ public class GameManager : MonoBehaviour
         if (_autoSpinRemaining <= 0) break;
       }
 
-      yield return new WaitForSeconds(0.5f);
+      yield return new WaitForSeconds(autoSpinDelay);
     }
 
     // CLEAN EXIT (NO coroutine calls)
@@ -497,33 +498,46 @@ public class GameManager : MonoBehaviour
     //   uIManager.TriggerWinAnimation(socketController.ResultData.payload.winAmount, currentTotalBet);
     // }
 
-    // Diamond feature: check before line-wins so the looped icon animations and the payout row
-    // glow start in parallel with the line-win presentation that follows. Server always sends
-    // diamondCount + diamondPositions (even for the single-diamond idle case).
+    // Diamond feature: server always sends diamondCount + diamondPositions (even for the
+    // single-diamond idle case).
     var feats = socketController.ResultData.payload.featureWins;
-    if (feats != null && feats.diamondPositions != null && feats.diamondPositions.Count > 0)
+    bool diamondTrigger = feats != null && feats.diamondPositions != null && feats.diamondCount >= 2;
+    bool diamondIdle = feats != null && feats.diamondPositions != null && feats.diamondCount == 1;
+
+    if (diamondTrigger) uIManager.PlayDiamondPayoutRowWin(feats.diamondCount);
+
+    // Matrix diamond animation:
+    //   - auto-spin: single non-looped cycle yielded in parallel with the line-wins synced pass;
+    //     the icons reset themselves on completion. If the user stops auto mid-cycle, we re-arm
+    //     the looping animation below so the trigger stays visible.
+    //   - manual / free: existing forever-loop, torn down on next StartSpin's StopIconAnimation.
+    Coroutine diamondCycle = null;
+    if (diamondTrigger)
     {
-      if (feats.diamondCount >= 2)
-      {
-        slotManager.StartDiamondTriggered(feats.diamondPositions);
-        uIManager.PlayDiamondPayoutRowWin(feats.diamondCount);
-      }
-      else if (feats.diamondCount == 1
-               && SlotController.TryParseDiamondPos(feats.diamondPositions[0], out int idleRow, out int idleCol))
-      {
-        StartCoroutine(slotManager.PlayDiamondIdle(idleRow, idleCol));
-      }
+      if (isAutoSpin) diamondCycle = StartCoroutine(slotManager.PlayDiamondTriggeredCycle(feats.diamondPositions));
+      else slotManager.StartDiamondTriggered(feats.diamondPositions);
+    }
+    else if (diamondIdle
+             && SlotController.TryParseDiamondPos(feats.diamondPositions[0], out int idleRow, out int idleCol))
+    {
+      StartCoroutine(slotManager.PlayDiamondIdle(idleRow, idleCol));
     }
 
     if (socketController.ResultData.payload.lineWins.Count > 0)
     {
-      // yield return new WaitForSecondsRealtime(1f);
       // "win" SFX now fires with the win-line animations (after the scatter animations), inside
       // SlotController's win presentation.
       if (isFreeSpin && freeSpinController != null)
         freeSpinController.SetButtonsInteractable(false, true);
       yield return slotManager.AnimateLineWins(socketController.ResultData.payload.lineWins);
     }
+
+    if (diamondCycle != null) yield return diamondCycle;
+
+    // Auto-spin was stopped during the parallel cycles: re-arm the looping diamond animation so
+    // the matrix matches what a manual-spin trigger would have shown.
+    if (diamondTrigger && !isAutoSpin && !isFreeSpin)
+      slotManager.StartDiamondTriggered(feats.diamondPositions);
 
     // bool autoContinued = isFreeSpin || isAutoSpin || LastSpinWasWildTrigger() || LastSpinWasFreeSpinTrigger();
     // if (autoContinued)
@@ -680,7 +694,7 @@ public class GameManager : MonoBehaviour
     LineBet_Text.text = TextFormatter.FormatMoney(socketController.InitLineBetData.bets[betCounter]);
     UpdateBetButtonsInteractable();
     uIManager.PopulateSymbolsPayout(socketController.InitSymbolData);
-    uIManager.RefreshDiamondPayoutTexts();
+    uIManager.RefreshDiamondPayoutTexts(currentTotalBet);
   }
 
   void UpdateBetButtonsInteractable()

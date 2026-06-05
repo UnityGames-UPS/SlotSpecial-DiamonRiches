@@ -13,7 +13,6 @@ public class SlotIconView : MonoBehaviour
   [SerializeField] internal Image iconImage;
   [SerializeField] internal ImageAnimation bgImage;
   [SerializeField] internal ImageAnimation borderAnimation;
-  [SerializeField] internal ImageAnimation activeanimation;
   [SerializeField] private TMP_Text WinAmountText;
 
   [Header("Special Symbol Animation Overlay")]
@@ -207,7 +206,6 @@ public class SlotIconView : MonoBehaviour
         bgRt.anchoredPosition3D = _bgDefaultAnchoredPos;
       }
     }
-    activeanimation.StopAnimation();
 
     if (AnimLayerIA != null)
     {
@@ -248,7 +246,8 @@ public class SlotIconView : MonoBehaviour
     if (showWinLineText)
     {
       WinAmountText.gameObject.SetActive(true);
-      WinAmountText.text = TextFormatter.FormatSprite(winAmount, TextFormatter.GetSignificantDecimals(winAmount));
+      Debug.Log("Win Payout: " + winAmount.ToString());
+      WinAmountText.text = TextFormatter.FormatSprite(winAmount, TextFormatter.GetSignificantDecimals(winAmount), true);
     }
 
     borderAnimation.gameObject.SetActive(true);
@@ -332,6 +331,34 @@ public class SlotIconView : MonoBehaviour
     // Keep coroutine alive so the icon stays registered in animatingIcons until StopIconAnimation
     // is called on the next spin (which invokes StopAnim and unwinds the +100 size).
     while (AnimLayerIA != null && AnimLayerIA.isplaying) yield return null;
+  }
+
+  // Auto-spin variant: plays the triggered sequence once (non-looped) and self-restores rest state
+  // so the next auto-spin can start clean without relying on StopIconAnimation.
+  internal IEnumerator PlayDiamondTriggeredOnce(SlotController controller, Transform overlayParent, List<Sprite> sprites, float speed)
+  {
+    if (sprites == null || sprites.Count == 0 || AnimLayerIA == null || AnimLayerImage == null) yield break;
+    controller.RegisterAnimatingIcon(this);
+    Lift(overlayParent);
+    AnimLayerImage.rectTransform.sizeDelta = _specialAnimDefaultSize + new Vector2(100f, 100f);
+    iconImage.enabled = false;
+    AnimLayerImage.color = new Color(1f, 1f, 1f, 1f);
+    AnimLayerIA.AnimationSpeed = speed;
+    AnimLayerIA.holdAtLastFrame = false;
+    AnimLayerIA.gameObject.SetActive(true);
+    AnimLayerIA.PlaySequence(sprites, loop: false);
+    yield return new WaitUntil(() => AnimLayerIA == null || !AnimLayerIA.isplaying);
+
+    if (AnimLayerIA != null) { AnimLayerIA.StopAnimation(); AnimLayerIA.ResetToFirstFrame(); }
+    if (AnimLayerImage != null)
+    {
+      AnimLayerImage.color = new Color(1f, 1f, 1f, 0f);
+      AnimLayerImage.rectTransform.sizeDelta = _specialAnimDefaultSize;
+      AnimLayerImage.gameObject.SetActive(false);
+    }
+    iconImage.enabled = true;
+    Drop();
+    controller.UnregisterAnimatingIcon(this);
   }
 
   IEnumerator PlayOverlaySequence(List<Sprite> sprites, float speed)
@@ -430,7 +457,6 @@ public class SlotIconView : MonoBehaviour
         bgRt.anchoredPosition3D = _bgDefaultAnchoredPos;
       }
     }
-    activeanimation.StopAnimation();
     if (AnimLayerIA != null)
     {
       AnimLayerIA.StopAnimation();

@@ -413,25 +413,55 @@ public class SlotController : MonoBehaviour
 
   internal IEnumerator AnimateLineWins(List<LineWin> lineWins)
   {
-    bool autoContinued = gameManager.isAutoSpin || gameManager.isFreeSpin;
+    bool autoStart = gameManager.isAutoSpin || gameManager.isFreeSpin;
 
-    if (autoContinued)
+    if (!autoStart)
     {
-      // Auto/free spin chains the next spin, so block on the synced pass to keep the win visible,
-      // then stop (no infinite loop). Wait for the scatter animations first.
-      yield return WaitForScatterChain();
-      audioController.Play("win");
-      yield return PlaySyncedPass(lineWins, showPayouts: lineWins.Count == 1);
-      foreach (var lineWin in lineWins) StopAnimateLineWin(lineWin);
+      // Manual spin: run the whole presentation (synced pass -> loop) in the background so the
+      // caller returns immediately and the bottom-bar buttons are re-enabled while the synced pass
+      // is still playing. The user can skip / start the next spin at any point; the next StartSpin
+      // kills this via StopWinLoop().
+      _activeWinLines = lineWins;
+      WinLoopCorutine = StartCoroutine(WinPresentation(lineWins));
       yield break;
     }
 
-    // Manual spin: run the whole presentation (synced pass -> loop) in the background so the caller
-    // returns immediately and the bottom-bar buttons are re-enabled while the synced pass is still
-    // playing. The user can skip / start the next spin at any point; the next StartSpin kills this
-    // via StopWinLoop().
-    WinLoopCorutine = StartCoroutine(WinPresentation(lineWins));
-    yield break;
+    // Auto / free spin: block on the synced pass to keep the win visible before the next chained
+    // spin. Wait for the scatter animations first.
+    yield return WaitForScatterChain();
+    audioController.Play("win");
+    bool singleLine = lineWins.Count == 1;
+    yield return PlaySyncedPass(lineWins, showPayouts: singleLine);
+
+    // Free spin always stops here. Auto spin stops only if the user hasn't pressed stop mid-pass.
+    // StopAutoSpinCoroutine flips isAutoSpin and blocks on !isSpinning, so the background loop we
+    // kick off below survives the SpinRoutine returning and gets cleaned up on the next StartSpin.
+    if (gameManager.isAutoSpin || gameManager.isFreeSpin)
+    {
+      // Leave the line-win animations running — the next StartSpin's StopWinLoop walks
+      // _activeWinLines to tear them down, so we just register them for cleanup and exit.
+      _activeWinLines = lineWins;
+      yield break;
+    }
+
+    _activeWinLines = lineWins;
+    WinLoopCorutine = StartCoroutine(WinLoopAfterSync(lineWins, singleLine));
+  }
+
+  // Mid-flow upgrade path: the synced pass already ran inline on the auto branch, so resume with
+  // just the loop portion of WinPresentation.
+  IEnumerator WinLoopAfterSync(List<LineWin> lineWins, bool singleLine)
+  {
+    if (singleLine)
+    {
+      yield return SingleLineLoop(lineWins[0]);
+    }
+    else
+    {
+      SetDarkOverlay(true);
+      foreach (var lineWin in lineWins) StopAnimateLineWin(lineWin);
+      yield return PerLineLoop(lineWins);
+    }
   }
 
   // Manual-spin win presentation: wait for the scatter animations, then the synced first pass
@@ -478,7 +508,7 @@ public class SlotController : MonoBehaviour
         if (midRow < 0 || midRow >= slotMatrix[midCol].slotImages.Count) continue;
         // Skip the payout label when the middle symbol is a wild.
         if (slotMatrix[midCol].slotImages[midRow].id == WildId) continue;
-        midPerLine[(midCol, midRow)] = lineWin.payout;
+        midPerLine[(midCol, midRow)] = lineWin.winAmount;
       }
     }
 
@@ -518,7 +548,7 @@ public class SlotController : MonoBehaviour
         if (row < 0 || row >= slotMatrix[col].slotImages.Count) continue;
         bool show = i == midIndex && slotMatrix[col].slotImages[row].id != WildId;
         audioController.Play("blink");
-        _activeWinIterCoroutines.Add(StartCoroutine(slotMatrix[col].slotImages[row].PlayWinIteration(this, animationOverlayParent, show, show ? lineWin.payout : 0, isSyncedPass: false)));
+        _activeWinIterCoroutines.Add(StartCoroutine(slotMatrix[col].slotImages[row].PlayWinIteration(this, animationOverlayParent, show, show ? lineWin.winAmount : 0, isSyncedPass: false)));
       }
       for (int i = 0; i < _activeWinIterCoroutines.Count; i++)
         if (_activeWinIterCoroutines[i] != null) yield return _activeWinIterCoroutines[i];
@@ -541,7 +571,7 @@ public class SlotController : MonoBehaviour
           if (col < 0 || col >= slotMatrix.Count) continue;
           if (row < 0 || row >= slotMatrix[col].slotImages.Count) continue;
           bool show = i == midIndex && slotMatrix[col].slotImages[row].id != WildId;
-          double payout = show ? lineWin.payout : 0;
+          double payout = show ? lineWin.winAmount : 0;
           audioController.Play("blink");
           _activeWinIterCoroutines.Add(StartCoroutine(slotMatrix[col].slotImages[row].PlayWinIteration(this, animationOverlayParent, show, payout, isSyncedPass: false)));
         }
@@ -589,6 +619,24 @@ public class SlotController : MonoBehaviour
       StartCoroutine(slotMatrix[col].slotImages[row].PlayDiamondTriggeredLoop(
         this, animationOverlayParent, diamondTriggeredSprites, diamondTriggeredSpeed));
     }
+  }
+
+  // Auto-spin variant: plays each diamond's triggered animation as a single non-looped cycle in
+  // parallel and yields until they have all completed once (each icon resets itself on completion).
+  internal IEnumerator PlayDiamondTriggeredCycle(List<string> diamondPositions)
+  {
+    if (diamondPositions == null) yield break;
+    var coros = new List<Coroutine>();
+    for (int i = 0; i < diamondPositions.Count; i++)
+    {
+      if (!TryParsePosition(diamondPositions[i], out int row, out int col)) continue;
+      if (col < 0 || col >= slotMatrix.Count) continue;
+      if (row < 0 || row >= slotMatrix[col].slotImages.Count) continue;
+      coros.Add(StartCoroutine(slotMatrix[col].slotImages[row].PlayDiamondTriggeredOnce(
+        this, animationOverlayParent, diamondTriggeredSprites, diamondTriggeredSpeed)));
+    }
+    for (int i = 0; i < coros.Count; i++)
+      if (coros[i] != null) yield return coros[i];
   }
 
   // internal void SetGoldenDarkActive(bool isTrue = false)

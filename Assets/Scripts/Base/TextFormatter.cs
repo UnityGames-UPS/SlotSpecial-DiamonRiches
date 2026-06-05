@@ -22,15 +22,15 @@ public static class TextFormatter
     return value.ToString($"F{places}");
   }
 
-  public static string FormatSprite(double value, int decimalPlaces)
+  public static string FormatSprite(double value, int decimalPlaces, bool CustomSpriteSwitch = false)
   {
     string formatted = value.ToString($"F{decimalPlaces}");
     var sb = new StringBuilder();
     foreach (char c in formatted)
     {
       if (c >= '0' && c <= '9') sb.Append($"<sprite={c - '0'}>");
-      else if (c == '.') sb.Append("<sprite=10>");
-      else if (c == ',') sb.Append("<sprite=11>");
+      else if (CustomSpriteSwitch && c == '.') sb.Append("<sprite=10>");
+      else if (c == '.') sb.Append("<sprite=11>");
     }
     return sb.ToString();
   }

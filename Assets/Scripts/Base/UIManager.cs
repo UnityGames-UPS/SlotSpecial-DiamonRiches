@@ -240,15 +240,18 @@ public class UIManager : MonoBehaviour
 
   internal void UpdatePlayerInfo()
   {
-    double winAmount = socketController.ResultData?.payload?.winAmount ?? 0;
-    playerCurrentWinning.text = TextFormatter.FormatMoney(winAmount);
+    double winAmount = socketController.ResultData?.payload?.winAmount ?? 0.00;
+    if(winAmount>0)
+      playerCurrentWinning.text = TextFormatter.FormatSprite(winAmount, TextFormatter.GetSignificantDecimals(winAmount));
+    else
+     playerCurrentWinning.text = TextFormatter.FormatSprite(0, 2); 
 
     SetPlayerBalance(socketController.PlayerData.balance);
   }
 
   void ResetWinUIText()
   {
-    playerCurrentWinning.text = TextFormatter.FormatMoney(0);
+    playerCurrentWinning.text = TextFormatter.FormatSprite(0.00, 2);
   }
 
   internal void SetPlayerCurrentWinning(double value)
@@ -353,7 +356,7 @@ public class UIManager : MonoBehaviour
     _diamondActiveRowIndex = -1;
   }
 
-  internal void RefreshDiamondPayoutTexts()
+  internal void RefreshDiamondPayoutTexts(double totalBet = 0)
   {
     if (diamondPayoutRowText == null) return;
     var payout = socketController?.InitData?.features?.diamondPayout;
@@ -367,7 +370,7 @@ public class UIManager : MonoBehaviour
       if (diamondPayoutRowText[i] == null) continue;
       int count = i + 2;
       if (!payout.TryGetValue(count, out int mult)) { diamondPayoutRowText[i].text = ""; continue; }
-      diamondPayoutRowText[i].text = TextFormatter.FormatMoney(mult * lineBet);
+      diamondPayoutRowText[i].text = TextFormatter.FormatMoney(mult * totalBet);
     }
   }
 
