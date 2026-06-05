@@ -34,4 +34,17 @@ public static class TextFormatter
     }
     return sb.ToString();
   }
+
+  // Free-spin count text font: digits at sprite=0..9, slash at sprite=10. Distinct from the
+  // line-win/total-win sprite font where '.' lives at sprite=10 (CustomSpriteSwitch=true).
+  public static string FormatSpriteFraction(int numerator, int denominator)
+  {
+    var sb = new StringBuilder();
+    foreach (char c in numerator.ToString())
+      if (c >= '0' && c <= '9') sb.Append($"<sprite={c - '0'}>");
+    sb.Append("<sprite=10>");
+    foreach (char c in denominator.ToString())
+      if (c >= '0' && c <= '9') sb.Append($"<sprite={c - '0'}>");
+    return sb.ToString();
+  }
 }

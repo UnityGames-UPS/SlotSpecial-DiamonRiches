@@ -83,6 +83,27 @@ public class SlotController : MonoBehaviour
   [SerializeField] private List<Sprite> diamondTriggeredSprites = new List<Sprite>();
   [SerializeField] private float diamondTriggeredSpeed = 5f;
 
+  [Header("Extra Column (2-scatter teaser)")]
+  [SerializeField] private CanvasGroup extraColumnCG;
+  [SerializeField] private RectTransform extraColumnTransform;
+  [SerializeField] private RectTransform extraColumnReel;
+  [SerializeField] private SlotImage extraColumnSlot;
+  [SerializeField] private float extraColumnScaleBump = 0.05f;
+  [SerializeField] private float extraColumnFadeDuration = 0.35f;
+  [SerializeField] private float extraColumnReelHoldSeconds = 1f;
+  [SerializeField] private float extraColumnInterTeaserDelay = 0.4f;
+
+  [Header("Free Spin Triggered Sequence")]
+  [SerializeField] private List<Sprite> freeSpinTriggeredSprites = new List<Sprite>();
+  [SerializeField] private float freeSpinTriggeredSpeed = 5f;
+  [SerializeField] private RectTransform freeSpinCenterTarget;
+  [SerializeField] private float freeSpinCenterMoveDuration = 0.7f;
+  [SerializeField] private float freeSpinCenterMoveSpacing = 220f;
+
+  private Coroutine extraTeaserCoroutine = null;
+  private Tweener _extraReelTween = null;
+  private bool _teaserActive = false;
+
   private const int DiamondSymbolId = 7;
 
   // Free-spin (scatter) symbol id. It does not contribute to win lines; it is animated on reel
@@ -109,6 +130,7 @@ public class SlotController : MonoBehaviour
     StopWinLoop();
     StopIconAnimation();
     SetDarkOverlay(false);
+    ResetExtraColumn();
     KillAllTweens();
     ResetAllIcons();
 
@@ -176,12 +198,21 @@ public class SlotController : MonoBehaviour
       _reelLanded = new bool[Slot_Transform.Length];
     for (int i = 0; i < _reelLanded.Length; i++) _reelLanded[i] = false;
 
+    // Two-scatter teaser is active when cols 0 and 1 both hold a scatter (regardless of col 2 —
+    // a 3-scatter trigger still gets the extra-column reveal). When active, defer col 2's landing
+    // to the teaser coroutine so the real col 2 keeps looping during the reveal.
+    _teaserActive = TwoScatterTeaserActive() && extraColumnCG != null && Slot_Transform.Length >= 3;
+    int reelsToLand = _teaserActive ? Slot_Transform.Length - 1 : Slot_Transform.Length;
+
     // Runs alongside the reel-stop loop: animates each scatter the moment its reel lands.
     // Not awaited here — the win presentation waits on it instead, so the buttons can re-enable and
     // a spin click can interrupt it (StartSpin -> StopWinLoop stops this coroutine).
     scatterChainCoroutine = StartCoroutine(FreeSpinSymbolChain());
 
-    for (int i = 0; i < Slot_Transform.Length; i++)
+    if (_teaserActive)
+      extraTeaserCoroutine = StartCoroutine(PlayExtraColumnTeaser(playFallAudio));
+
+    for (int i = 0; i < reelsToLand; i++)
     {
       StopTweening(Slot_Transform[i], i);
       int landed = i;
@@ -202,8 +233,15 @@ public class SlotController : MonoBehaviour
       }
     }
 
-    foreach(Tween t in alltweens)
-      yield return t.WaitForCompletion();
+    // Wait for the reels we did stop (skips col 2 when teaser is active — teaser awaits it itself).
+    for (int i = 0; i < reelsToLand; i++)
+      yield return alltweens[i].WaitForCompletion();
+
+    if (extraTeaserCoroutine != null)
+    {
+      yield return extraTeaserCoroutine;
+      extraTeaserCoroutine = null;
+    }
 
     // Snap reel columns to exactly RestY so the win presentation's Lift() reads a final
     // world position regardless of any OutBack overshoot frame race.
@@ -246,6 +284,238 @@ public class SlotController : MonoBehaviour
     for (int row = 0; row < images.Count; row++)
       if (images[row] != null && images[row].id == FreeSpinSymbolId) last = images[row];
     return last;
+  }
+
+  bool TwoScatterTeaserActive()
+    => GetColumnFreeSpinIcon(0) != null && GetColumnFreeSpinIcon(1) != null;
+
+  // Two-scatter teaser. Runs alongside StopSpin's reel loop. Cols 0/1 land normally via the loop;
+  // col 2 stays infinite-looping until this coroutine stops it together with the extra column so
+  // both land on the same frame and their scatter anims (if col 2 has one) play simultaneously.
+  IEnumerator PlayExtraColumnTeaser(Action playFallAudio)
+  {
+    // Mirror col-2's result symbols onto the extra column so when it lands the visible rows
+    // already display the correct sprites. PopulateSlotMatrix has already run by the time
+    // StopSpin starts, so slotMatrix[2].slotImages[row].id is the resolved result.
+    if (extraColumnSlot != null && extraColumnSlot.slotImages != null && slotMatrix.Count > 2)
+    {
+      for (int row = 0; row < extraColumnSlot.slotImages.Count && row < slotMatrix[2].slotImages.Count; row++)
+      {
+        int id = slotMatrix[2].slotImages[row].id;
+        if (id < 0 || id >= iconImages.Length) continue;
+        extraColumnSlot.slotImages[row].SetIcon(ID: id, image: iconImages[id]);
+      }
+    }
+
+    // Wait for cols 0 and 1 to finish landing before revealing the extra column.
+    while (!gameManager.immediateStop && (_reelLanded.Length < 2 || !_reelLanded[0] || !_reelLanded[1]))
+      yield return null;
+
+    if (gameManager.immediateStop)
+    {
+      yield return CancelExtraColumnTeaser();
+      yield break;
+    }
+
+    SetDarkOverlay(true);
+
+    // Start the extra reel's infinite tween BEFORE the fade so the user sees a spinning reel
+    // through the fade-in.
+    if (extraColumnReel != null)
+    {
+      extraColumnReel.localPosition = new Vector2(extraColumnReel.localPosition.x, SpinTopY);
+      _extraReelTween = extraColumnReel.DOLocalMoveY(SpinBottomY, DurationFor(SpinTopY, SpinBottomY))
+        .SetLoops(-1, LoopType.Restart)
+        .SetEase(Ease.Linear);
+    }
+
+    if (extraColumnCG != null)
+    {
+      extraColumnCG.gameObject.SetActive(true);
+      extraColumnCG.alpha = 0f;
+    }
+    if (extraColumnTransform != null) extraColumnTransform.localScale = Vector3.one;
+
+    Sequence reveal = DOTween.Sequence();
+    if (extraColumnCG != null) reveal.Join(extraColumnCG.DOFade(1f, extraColumnFadeDuration));
+    if (extraColumnTransform != null) reveal.Join(extraColumnTransform.DOScale(1f + extraColumnScaleBump, extraColumnFadeDuration));
+    yield return WaitOrCancel(reveal);
+    if (gameManager.immediateStop) { yield return CancelExtraColumnTeaser(); yield break; }
+
+    // Hold (interruptible by stop).
+    float elapsed = 0f;
+    while (elapsed < extraColumnReelHoldSeconds && !gameManager.immediateStop)
+    {
+      elapsed += Time.unscaledDeltaTime;
+      yield return null;
+    }
+    if (gameManager.immediateStop) { yield return CancelExtraColumnTeaser(); yield break; }
+
+    // Stop both reels on the same frame. Real col 2 uses the standard StopTweening path so the
+    // scatter chain's _reelLanded[2] gate unblocks; extra reel mirrors the OutBack land.
+    StopTweening(Slot_Transform[2], 2);
+    alltweens[2].OnComplete(() => { if (2 < _reelLanded.Length) _reelLanded[2] = true; });
+
+    Tween extraStop = null;
+    if (extraColumnReel != null)
+    {
+      _extraReelTween?.Kill();
+      _extraReelTween = null;
+      extraColumnReel.localPosition = new Vector2(extraColumnReel.localPosition.x, SpinTopY);
+      extraStop = extraColumnReel.DOLocalMoveY(RestY, DurationFor(SpinTopY, RestY)).SetEase(Ease.OutBack, 0.9f);
+    }
+    playFallAudio?.Invoke();
+
+    yield return alltweens[2].WaitForCompletion();
+    if (extraStop != null) yield return extraStop.WaitForCompletion();
+    Canvas.ForceUpdateCanvases();
+
+    // If col 2 has a scatter, mirror the scatter animation on the extra column's last scatter row.
+    // The real col 2 anim fires from FreeSpinSymbolChain when _reelLanded[2] flips (above).
+    SlotIconView extraScatter = GetExtraColumnFreeSpinIcon();
+    if (extraScatter != null && freeSpinSymbolAnimSprites != null && freeSpinSymbolAnimSprites.Count > 0)
+    {
+      extraScatter.Lift(animationOverlayParent);
+      yield return extraScatter.PlayFreeSpinAnim(freeSpinSymbolAnimSprites, freeSpinSymbolAnimSpeed);
+      extraScatter.Drop();
+    }
+
+    // Wait for the scatter chain (cols 0,1, and 2 if it has a scatter) before fading the extra column.
+    if (scatterChainCoroutine != null) yield return scatterChainCoroutine;
+
+    yield return FadeOutExtraColumn();
+
+    if (gameManager.isAutoSpin || gameManager.isFreeSpin)
+      yield return new WaitForSecondsRealtime(extraColumnInterTeaserDelay);
+  }
+
+  SlotIconView GetExtraColumnFreeSpinIcon()
+  {
+    if (extraColumnSlot == null || extraColumnSlot.slotImages == null) return null;
+    SlotIconView last = null;
+    foreach (var icon in extraColumnSlot.slotImages)
+      if (icon != null && icon.id == FreeSpinSymbolId) last = icon;
+    return last;
+  }
+
+  IEnumerator WaitOrCancel(Sequence seq)
+  {
+    while (seq != null && seq.IsActive() && seq.IsPlaying())
+    {
+      if (gameManager.immediateStop) { seq.Kill(); yield break; }
+      yield return null;
+    }
+  }
+
+  IEnumerator CancelExtraColumnTeaser()
+  {
+    // User pressed Stop mid-teaser. Forfeit the reveal entirely, then run the normal stop path
+    // for col 2 so it lands like every other reel.
+    if (_extraReelTween != null) { _extraReelTween.Kill(); _extraReelTween = null; }
+    if (extraColumnCG != null) { extraColumnCG.alpha = 0f; extraColumnCG.gameObject.SetActive(false); }
+    if (extraColumnTransform != null) extraColumnTransform.localScale = Vector3.one;
+    SetDarkOverlay(false);
+
+    if (2 < Slot_Transform.Length && 2 < alltweens.Count && alltweens[2] != null && !alltweens[2].IsComplete())
+    {
+      StopTweening(Slot_Transform[2], 2);
+      alltweens[2].OnComplete(() => { if (2 < _reelLanded.Length) _reelLanded[2] = true; });
+      yield return alltweens[2].WaitForCompletion();
+    }
+  }
+
+  IEnumerator FadeOutExtraColumn()
+  {
+    if (extraColumnCG == null && extraColumnTransform == null) yield break;
+    Sequence exit = DOTween.Sequence();
+    if (extraColumnCG != null) exit.Join(extraColumnCG.DOFade(0f, extraColumnFadeDuration));
+    if (extraColumnTransform != null) exit.Join(extraColumnTransform.DOScale(1f, extraColumnFadeDuration));
+    yield return exit.WaitForCompletion();
+    if (extraColumnCG != null) extraColumnCG.gameObject.SetActive(false);
+    SetDarkOverlay(false);
+  }
+
+  void ResetExtraColumn()
+  {
+    _teaserActive = false;
+    if (_extraReelTween != null) { _extraReelTween.Kill(); _extraReelTween = null; }
+    if (extraTeaserCoroutine != null) { StopCoroutine(extraTeaserCoroutine); extraTeaserCoroutine = null; }
+    if (extraColumnCG != null) { extraColumnCG.alpha = 0f; extraColumnCG.gameObject.SetActive(false); }
+    if (extraColumnTransform != null) extraColumnTransform.localScale = Vector3.one;
+    if (extraColumnSlot != null && extraColumnSlot.slotImages != null)
+      foreach (var icon in extraColumnSlot.slotImages) if (icon != null) icon.Reset();
+  }
+
+  // Centered triggered reveal: lifts the three scatter icons, plays the triggered sequence twice
+  // while they converge on freeSpinCenterTarget, returns them, then plays the third time in place.
+  // The caller (GameManager.OnSpinEnd) is responsible for fading in the Start panel during the
+  // third play.
+  internal IEnumerator PlayFreeSpinTriggeredSequence(List<string> scatterPositions, Action onThirdPlayStart = null)
+  {
+    if (scatterPositions == null || scatterPositions.Count == 0 || freeSpinTriggeredSprites == null || freeSpinTriggeredSprites.Count == 0)
+      yield break;
+
+    // Free-spin trigger is exactly 3 scatters; server could occasionally send extras (4-scatter
+    // retrigger edge cases). Cap so the centered presentation never overflows.
+    int maxIcons = 3;
+
+    var icons = new List<SlotIconView>();
+    var originalWorld = new List<Vector3>();
+    for (int i = 0; i < scatterPositions.Count && icons.Count < maxIcons; i++)
+    {
+      if (!TryParsePosition(scatterPositions[i], out int row, out int col)) continue;
+      if (col < 0 || col >= slotMatrix.Count) continue;
+      if (row < 0 || row >= slotMatrix[col].slotImages.Count) continue;
+      var icon = slotMatrix[col].slotImages[row];
+      // Capture world position BEFORE Lift so the return-to-original target is the icon's
+      // pre-overlay screen position. Lift uses worldPositionStays:true, so capturing after would
+      // give the same value — but doing it before is cheaper and order-independent.
+      originalWorld.Add(icon.transform.position);
+      icon.Lift(animationOverlayParent);
+      icons.Add(icon);
+    }
+
+    if (icons.Count == 0) yield break;
+
+    // World-space convergence: anchor independent. All 3 icons overlap at the same center —
+    // freeSpinCenterTarget if assigned, otherwise animationOverlayParent's world position.
+    Vector3 centerWorld = freeSpinCenterTarget != null
+      ? freeSpinCenterTarget.position
+      : animationOverlayParent.position;
+
+    // Move all icons to the same center in parallel — they overlap there during the two
+    // triggered plays, then move back to their originals.
+    Sequence moveOut = DOTween.Sequence();
+    for (int i = 0; i < icons.Count; i++)
+      moveOut.Join(icons[i].transform.DOMove(centerWorld, freeSpinCenterMoveDuration).SetEase(Ease.OutCubic));
+
+    var playRoutines = new List<Coroutine>();
+    for (int i = 0; i < icons.Count; i++)
+      playRoutines.Add(StartCoroutine(PlayTriggeredTwice(icons[i])));
+
+    yield return moveOut.WaitForCompletion();
+    foreach (var c in playRoutines) if (c != null) yield return c;
+
+    // Return to pre-Lift world positions.
+    Sequence moveBack = DOTween.Sequence();
+    for (int i = 0; i < icons.Count; i++)
+      moveBack.Join(icons[i].transform.DOMove(originalWorld[i], freeSpinCenterMoveDuration).SetEase(Ease.InOutCubic));
+    yield return moveBack.WaitForCompletion();
+
+    // Third play — caller hooks in here to fade in the Start panel.
+    onThirdPlayStart?.Invoke();
+    var thirdPlays = new List<Coroutine>();
+    for (int i = 0; i < icons.Count; i++)
+      thirdPlays.Add(StartCoroutine(icons[i].PlayTriggeredOnce(freeSpinTriggeredSprites, freeSpinTriggeredSpeed)));
+    foreach (var c in thirdPlays) if (c != null) yield return c;
+
+    foreach (var icon in icons) icon.Drop();
+  }
+
+  IEnumerator PlayTriggeredTwice(SlotIconView icon)
+  {
+    yield return icon.PlayTriggeredOnce(freeSpinTriggeredSprites, freeSpinTriggeredSpeed);
+    yield return icon.PlayTriggeredOnce(freeSpinTriggeredSprites, freeSpinTriggeredSpeed);
   }
 
   internal void ShuffleMatrix(bool ignoreResultMatrix = false)
@@ -413,7 +683,12 @@ public class SlotController : MonoBehaviour
 
   internal IEnumerator AnimateLineWins(List<LineWin> lineWins)
   {
-    bool autoStart = gameManager.isAutoSpin || gameManager.isFreeSpin;
+    // During a free-spin loop spinsRemaining > 0 means more spins coming, so present one-shot
+    // (auto-style). On the last spin spinsRemaining is 0 and we want the indefinite manual loop
+    // so the user can read the final win while the end panel fades in.
+    bool freeSpinActive = gameManager.isFreeSpin && gameManager.freeSpinController != null
+                          && gameManager.freeSpinController.spinsRemaining > 0;
+    bool autoStart = gameManager.isAutoSpin || freeSpinActive;
 
     if (!autoStart)
     {

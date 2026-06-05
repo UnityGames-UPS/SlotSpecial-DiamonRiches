@@ -9,6 +9,7 @@ using Best.HTTP.Proxies;
 using System.Threading;
 using DG.Tweening;
 using Coffee.UISoftMask;
+using System.Linq;
 public class GameManager : MonoBehaviour
 {
   [Header("Scripts")]
@@ -16,7 +17,7 @@ public class GameManager : MonoBehaviour
   [SerializeField] private UIManager uIManager;
   [SerializeField] private SocketController socketController;
   [SerializeField] private AudioController audioController;
-  [SerializeField] private FreeSpinController freeSpinController;
+  [SerializeField] internal FreeSpinController freeSpinController;
 
   [Header("For Spins")]
   [SerializeField] private Button SlotStart_Button;
@@ -55,25 +56,11 @@ public class GameManager : MonoBehaviour
   [SerializeField] internal bool turboMode;
   [SerializeField] internal bool immediateStop;
   private Coroutine spinRoutine;
-  private bool autoSkipArmed;
-  private bool autoSkipWinRequested;
 
 
   void Start()
   {
-    SetButton(SlotStart_Button, () =>
-    {
-      if (autoSkipArmed)
-      {
-        autoSkipWinRequested = true;
-        autoSkipArmed = false;
-        SlotStart_Button.interactable = false;
-      }
-      else
-      {
-        ExecuteSpin();
-      }
-    }, true);
+    SetButton(SlotStart_Button, () => ExecuteSpin(), true);
     // --- OLD (Age of Gods template): panel-driven, click was a no-op because
     //     AutoSpinPanelController opened a count selection panel on hover/click-toggle.
     // SetButton(AutoSpin_Button, () => { }, true);
@@ -283,41 +270,11 @@ public class GameManager : MonoBehaviour
 
     yield return OneSpinFlow();
 
-    // Chain wild-triggered spins; each chained result can itself trigger another wild
-    // (wildFeaturePending > 0) or land a free-spin trigger, so re-check after every spin.
-    // while (true)
-    // {
-    //   if (!isFreeSpin && LastSpinWasFreeSpinTrigger())
-    //   {
-    //     int awarded = LastSpinFreeSpinAward();
-    //     isFreeSpin = true;
-    //     isAutoSpin = false;
-    //     if (autoSpinRoutine != null) { StopCoroutine(autoSpinRoutine); autoSpinRoutine = null; }
-    //     AutoSpin_Button.gameObject.SetActive(true);
-
-    //     audioController.Play("FP");
-
-    //     yield return freeSpinController.RunFreeSpins(
-    //       awarded,
-    //       OneSpinFlow,
-    //       LastSpinWinAmount,
-    //       LastSpinWasFreeSpinTrigger,
-    //       LastSpinFreeSpinAward,
-    //       uIManager.SetPlayerCurrentWinning,
-    //       OnFreeSpinsComplete
-    //     );
-    //     break;
-    //   }
-
-    //   if (!isAutoSpin && !isFreeSpin && LastSpinWasWildTrigger())
-    //   {
-    //     if (!OnSpinStart()) break;
-    //     yield return OneSpinFlow();
-    //     continue;
-    //   }
-
-    //   break;
-    // }
+    // The trigger spin's OnSpinEnd flipped isFreeSpin and faded in the FS UI. Drive the awarded
+    // spins inline so retriggers (which run inside OnSpinEnd and bump spinsRemaining) extend
+    // the loop transparently.
+    if (isFreeSpin)
+      yield return RunFreeSpinLoop();
 
     if (!isAutoSpin && !isFreeSpin)
     {
@@ -326,6 +283,46 @@ public class GameManager : MonoBehaviour
     isSpinning = false;
     spinRoutine = null;
   }
+
+  IEnumerator RunFreeSpinLoop()
+  {
+    while (freeSpinController.spinsRemaining > 0)
+    {
+      freeSpinController.BeforeSpin();
+      freeSpinController.spinsRemaining--;
+
+      // OneSpinFlow drives a full server spin → reels → diamond/lineWins. Retrigger inside
+      // OnSpinEnd will RegisterAward, bumping spinsRemaining back up — the while-loop then
+      // continues for the extra spins.
+      yield return OneSpinFlow();
+
+      freeSpinController.AccumulateWin(LastSpinWinAmount());
+
+      if (freeSpinController.spinsRemaining > 0)
+        yield return freeSpinController.InterSpinDelay();
+    }
+
+    // Final spin completed without retrigger. Its lineWins already ran one-shot (spinsRemaining
+    // hit 0 inside that AnimateLineWins call — see SlotController.AnimateLineWins). End panel
+    // overlays the looping diamond/lineWins behind it.
+    isFreeSpin = false;
+    yield return freeSpinController.ShowEndPanel(t => uIManager.SetPlayerCurrentWinning(t));
+    audioController.Play("bg");
+  }
+
+  bool LastSpinTriggeredFreeSpins()
+  {
+    var triggered = socketController.ResultData?.payload?.triggeredFeatures;
+    if (triggered == null) return false;
+    foreach (var t in triggered)
+      if (t != null && string.Equals(t.ToString(), "FREE_SPINS", StringComparison.OrdinalIgnoreCase))
+        return true;
+    return false;
+  }
+
+  int LastSpinFreeSpinAward() => socketController.ResultData?.payload?.freeSpins?.awarded ?? 0;
+  double LastSpinWinAmount() => socketController.ResultData?.payload?.winAmount ?? 0;
+  List<string> LastSpinScatterPositions() => socketController.ResultData?.payload?.freeSpins?.scatterPositions;
 
   IEnumerator OneSpinFlow()
   {
@@ -406,11 +403,13 @@ public class GameManager : MonoBehaviour
     //   uIManager.SetPlayerBalance(socketController.PlayerData.balance - currentTotalBet);
 
 
-    if (!isFreeSpin) // was: && !LastSpinWasWildTrigger() — wild trigger removed in Diamond Riches model
-    {
-      immediateStop = false;
-      StopSpin_Button.gameObject.SetActive(true);
-    }
+    // Stop button is usable in manual, auto, AND free-spin modes (per spec: stop must remain
+    // available to interrupt auto/free chains). Explicitly re-enable interactable — the previous
+    // spin's StopSpin click flow flips it false on press and back true on release, so a click
+    // that races with spin teardown can leave the next spin starting with interactable=false.
+    immediateStop = false;
+    StopSpin_Button.gameObject.SetActive(true);
+    StopSpin_Button.interactable = true;
 
     yield return slotManager.StartSpin();
 
@@ -493,6 +492,46 @@ public class GameManager : MonoBehaviour
 
     uIManager.UpdatePlayerInfo();
 
+    // Free-spin trigger / retrigger gate: must run BEFORE diamond / lineWins presentation so the
+    // user sees the centered triggered animation + start panel before any wins resolve. If this
+    // is the initial trigger (isFreeSpin currently false), we also fade in the FS background/UI
+    // here, on the entry spin only.
+    if (LastSpinTriggeredFreeSpins())
+    {
+      // Auto-spin must turn off the moment FS triggers (per spec).
+      if (isAutoSpin)
+      {
+        isAutoSpin = false;
+        SetAutoSpinUI(false);
+        if (autoSpinRoutine != null) { StopCoroutine(autoSpinRoutine); autoSpinRoutine = null; }
+      }
+
+      int awarded = LastSpinFreeSpinAward();
+      bool isEntry = !isFreeSpin;
+      if (isEntry) freeSpinController.BeginSession();
+
+      // Centered triggered sequence: third play coincides with the Start panel fade-in.
+      Coroutine startPanelIn = null;
+      yield return slotManager.PlayFreeSpinTriggeredSequence(
+        LastSpinScatterPositions(),
+        onThirdPlayStart: () =>
+        {
+          startPanelIn = StartCoroutine(freeSpinController.PlayStartPanelIn(awarded));
+        }
+      );
+      if (startPanelIn != null) yield return startPanelIn;
+      yield return freeSpinController.WaitStartPanelOk();
+
+      freeSpinController.RegisterAward(awarded);
+
+      if (isEntry)
+      {
+        isFreeSpin = true;
+        yield return freeSpinController.FadeInFreeSpinUi();
+        audioController.Play("FP");
+      }
+    }
+
     // if (socketController.ResultData.payload.winAmount > 0)
     // {
     //   uIManager.TriggerWinAnimation(socketController.ResultData.payload.winAmount, currentTotalBet);
@@ -527,8 +566,6 @@ public class GameManager : MonoBehaviour
     {
       // "win" SFX now fires with the win-line animations (after the scatter animations), inside
       // SlotController's win presentation.
-      if (isFreeSpin && freeSpinController != null)
-        freeSpinController.SetButtonsInteractable(false, true);
       yield return slotManager.AnimateLineWins(socketController.ResultData.payload.lineWins);
     }
 
@@ -542,61 +579,6 @@ public class GameManager : MonoBehaviour
     // bool autoContinued = isFreeSpin || isAutoSpin || LastSpinWasWildTrigger() || LastSpinWasFreeSpinTrigger();
     // if (autoContinued)
     //   yield return WaitWinAnimOrSkip();
-  }
-
-  IEnumerator WaitWinAnimOrSkip()
-  {
-    if (!uIManager.isWinAnimating)
-    {
-      // Skip click may have carried over from line-wins SkippableWait; consume so it doesn't leak into next phase.
-      CheckWinSkip();
-      yield break;
-    }
-
-    if (CheckWinSkip())
-    {
-      uIManager.ResetWinAnimation();
-      yield break;
-    }
-
-    if (isFreeSpin && freeSpinController != null)
-      freeSpinController.ArmSkipButton();
-    else
-      ArmAutoSkip();
-
-    while (uIManager.isWinAnimating)
-    {
-      if (CheckWinSkip())
-      {
-        uIManager.ResetWinAnimation();
-        break;
-      }
-      yield return null;
-    }
-
-    DisarmWinSkip();
-  }
-
-  bool CheckWinSkip()
-  {
-    if (isFreeSpin && freeSpinController != null && freeSpinController.ConsumeSkipRequest()) return true;
-    if (!isFreeSpin && autoSkipWinRequested) { autoSkipWinRequested = false; return true; }
-    return false;
-  }
-
-  void ArmAutoSkip()
-  {
-    autoSkipArmed = true;
-    autoSkipWinRequested = false;
-    if (SlotStart_Button) SlotStart_Button.interactable = true;
-  }
-
-  void DisarmWinSkip()
-  {
-    autoSkipArmed = false;
-    if (isFreeSpin && freeSpinController != null) freeSpinController.DisarmSkipButton();
-    // Wild-auto path: ExecuteSpin disabled SlotStart_Button via ToggleButtonGrp(false); re-disable after the gate so the user can't accidentally interrupt the auto-continued second wild spin.
-    if (!isFreeSpin && !isAutoSpin && SlotStart_Button) SlotStart_Button.interactable = false;
   }
 
   IEnumerator TriggerFeature(int count, List<Vector2Int> streak)

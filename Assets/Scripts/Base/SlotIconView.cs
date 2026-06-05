@@ -361,6 +361,18 @@ public class SlotIconView : MonoBehaviour
     controller.UnregisterAnimatingIcon(this);
   }
 
+  // Free-spin trigger centered sequence: one non-looped overlay play. Lift/Drop are the caller's
+  // responsibility (SlotController.PlayFreeSpinTriggeredSequence wraps three of these around the
+  // converge-and-return move). Restores AnimLayer to default size on exit so the icon can be
+  // safely re-played without inheriting stale geometry.
+  internal IEnumerator PlayTriggeredOnce(List<Sprite> sprites, float speed)
+  {
+    if (sprites == null || sprites.Count == 0 || AnimLayerIA == null || AnimLayerImage == null) yield break;
+    AnimLayerImage.rectTransform.sizeDelta = _specialAnimDefaultSize;
+    AnimLayerImage.rectTransform.anchoredPosition3D = _specialAnimDefaultAnchoredPos;
+    yield return PlayOverlaySequence(sprites, speed);
+  }
+
   IEnumerator PlayOverlaySequence(List<Sprite> sprites, float speed)
   {
     if (AnimLayerIA == null || AnimLayerImage == null)
