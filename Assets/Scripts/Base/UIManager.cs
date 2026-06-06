@@ -19,6 +19,8 @@ public class UIManager : MonoBehaviour
 
   [Header("Paytable Texts")]
   [SerializeField] private SymbolPayoutTexts[] SymbolsTexts;
+  // 8 entries, idx 0 -> count 2, idx 7 -> count 9.
+  [SerializeField] private TMP_Text[] infoPageDiamondPayoutText;
 
   [Header("Pagination")]
   int CurrentIndex = 0;
@@ -42,47 +44,8 @@ public class UIManager : MonoBehaviour
   [SerializeField] private Sprite soundOFF;
   private bool isSound = true;
 
-  [Header("all Win Popup")]
-  [SerializeField] private TMP_Text Win_Text;
-
-  [Header("Win Animation - Text")]
-  [SerializeField] private float scaleUpDuration = 0.8f;
-  [SerializeField] private float normalLerpDuration = 3.0f;
-  [SerializeField] private float bigWinLerpDuration = 3.5f;
-  [SerializeField] private float superWinLerpDuration = 4.0f;
-  [SerializeField] private float textMoveDuration = 0.4f;
-  [SerializeField] private float postLerpHoldDuration = 2.0f;
-
-  [Header("Win Animation - Thresholds")]
-  [SerializeField] private float normalWinMultiplier = 5f;
-  [SerializeField] private float bigWinMultiplier = 10f;
-  [SerializeField] private float superWinMultiplier = 15f;
-
-  [Header("Win Animation - Big Win")]
-  [SerializeField] private RectTransform bigWinBgRect;
-  [SerializeField] private RectTransform bigWinAnimRect;
-  [SerializeField] private ImageAnimation bigWinAnim;
-  [Range(0.1f, 0.9f)][SerializeField] private float bigWinTextMoveThreshold = 0.6f;
-  [SerializeField] private float bigWinTextTargetY = -131f;
-
-  [Header("Win Animation - Super Win")]
-  [SerializeField] private RectTransform superWinAnimRect;
-  [SerializeField] private ImageAnimation superWinBgAnim;
-  [SerializeField] private ImageAnimation superWinCoinAnim;
-  [Range(0.1f, 0.9f)][SerializeField] private float superWinTextMoveThreshold = 0.4f;
-  [Range(0.1f, 0.9f)][SerializeField] private float superWinExtraThreshold = 0.65f;
-  [SerializeField] private float superWinBgFadeIn = 0.25f;
-  [SerializeField] private float superWinBgFadeOut = 0.35f;
-  [SerializeField] private float superWinCoinFadeIn = 0.4f;
-  [SerializeField] private float superWinCoinFadeOut = 0.35f;
-  [Range(0.0f, 1.0f)][SerializeField] private float superWinBgProgressForCoin = 0.7f;
-  private bool _coinLoopShown;
-  private bool _coinEndPlayed;
-  private Coroutine _coinWatcher;
-
-  [Header("Win Animation - Debug")]
-  [SerializeField] private bool enableDebugKeys = false;
-  [SerializeField] private float debugBetAmount = 1.0f;
+  [Header("Win Animation")]
+  [SerializeField] internal WinAnimController winAnim;
 
 
   [Header("low balance popup")]
@@ -109,16 +72,6 @@ public class UIManager : MonoBehaviour
 
   private bool isExit = false;
   private const string HasSeenStartupKey = "hasSeenStartup";
-
-  internal bool isWinAnimating;
-  private Coroutine _winCoroutine;
-  private List<Tween> _winTweens = new List<Tween>();
-  private bool _bigWinActive;
-  private bool _superWinActive;
-  private double _currentWinAmount;
-  private int _currentDecimalPlaces;
-  private bool _winTextMoved;
-  private float _winTextOriginalY;
 
   [Header("JS / Audio")]
   [SerializeField] private JSFunctCalls jsFunctCalls;
@@ -152,12 +105,6 @@ public class UIManager : MonoBehaviour
 
     if (jsFunctCalls != null)
       jsFunctCalls.RegisterVisibilityListener(gameObject.name);
-
-    if (Win_Text != null)
-    {
-      Win_Text.transform.localScale = Vector3.zero;
-      _winTextOriginalY = Win_Text.GetComponent<RectTransform>().anchoredPosition.y;
-    }
 
     CacheDiamondPayoutDefaults();
   }
@@ -209,19 +156,6 @@ public class UIManager : MonoBehaviour
     InitIndicators();
   }
 
-  private void Update()
-  {
-    if (!enableDebugKeys) return;
-    if (Input.GetKeyDown(KeyCode.Alpha1))
-      TriggerWinAnimation(debugBetAmount * (normalWinMultiplier + 2f), debugBetAmount);
-    if (Input.GetKeyDown(KeyCode.Alpha2))
-      TriggerWinAnimation(debugBetAmount * (bigWinMultiplier + 2f), debugBetAmount);
-    if (Input.GetKeyDown(KeyCode.Alpha3))
-      TriggerWinAnimation(debugBetAmount * (superWinMultiplier + 5f), debugBetAmount);
-    if (Input.GetKeyDown(KeyCode.Alpha4))
-      ResetWinAnimation();
-  }
-
   private void SetButton(Button button, Action action)
   {
     if (button == null)
@@ -257,7 +191,7 @@ public class UIManager : MonoBehaviour
   internal void SetPlayerCurrentWinning(double value)
   {
     if (playerCurrentWinning != null)
-      playerCurrentWinning.text = TextFormatter.FormatMoney(value);
+      playerCurrentWinning.text = TextFormatter.FormatSprite(value, TextFormatter.GetSignificantDecimals(value));
   }
 
   internal void LowBalPopup()
@@ -267,29 +201,40 @@ public class UIManager : MonoBehaviour
 
   internal bool IsLowBalPopupOpen => LowBalancePopup_Object != null && LowBalancePopup_Object.activeSelf;
 
-  // TODO: rework to use Symbol.payout + features.diamondPayout (Symbol.multiplier is now always empty in Diamond Riches, so texts currently clear).
   internal void PopulateSymbolsPayout(UiData uiData)
   {
-    // if (uiData == null || uiData.paylines.symbols == null)
-    //   return;
+    if (uiData?.paylines?.symbols == null || SymbolsTexts == null) return;
+    var bets = socketController?.InitLineBetData?.bets;
+    if (bets == null || gameManager == null) return;
+    if (gameManager.betCounter < 0 || gameManager.betCounter >= bets.Count) return;
+    double lineBet = bets[gameManager.betCounter];
 
-    // foreach(var symbolText in SymbolsTexts)
-    // {
-    //   Symbol symbol = uiData.paylines.symbols.FirstOrDefault(s => s.name == symbolText.symbolName);
-    //   if (symbol == null || symbol.multiplier == null || symbol.multiplier.Count == 0)
-    //   {
-    //     symbolText.symbolText.ForEach(t => t.text = "");
-    //     continue;
-    //   }
+    foreach (var symbolText in SymbolsTexts)
+    {
+      if (symbolText?.symbolText == null) continue;
+      Symbol symbol = uiData.paylines.symbols.FirstOrDefault(s => s.name == symbolText.symbolName);
+      if (symbol == null || symbol.payout <= 0)
+      {
+        symbolText.symbolText.ForEach(t => { if (t != null) t.text = ""; });
+        continue;
+      }
+      string formatted = (symbol.payout * lineBet).ToString("0.##");
+      symbolText.symbolText.ForEach(t => { if (t != null) t.text = formatted; });
+    }
+  }
 
-    //   int multiplierCount = symbol.multiplier.Count;
-    //   for (int j = 0; j < multiplierCount; j++)
-    //   {
-    //     double payout = symbol.multiplier[j] * socketController.InitLineBetData.bets[gameManager.betCounter];
-    //     string payoutText = $"{payout}";
-    //     symbolText.symbolText[j].text = payoutText;
-    //   }
-    // }
+  internal void PopulateInfoPageDiamondPayouts()
+  {
+    if (infoPageDiamondPayoutText == null) return;
+    var payout = socketController?.InitData?.features?.diamondPayout;
+    if (payout == null) return;
+
+    for (int i = 0; i < infoPageDiamondPayoutText.Length; i++)
+    {
+      if (infoPageDiamondPayoutText[i] == null) continue;
+      int count = i + 2;
+      infoPageDiamondPayoutText[i].text = payout.TryGetValue(count, out int mult) ? $"x{mult}" : "";
+    }
   }
 
   internal void PlayDiamondPayoutShineOverlay()
@@ -529,208 +474,20 @@ public class UIManager : MonoBehaviour
 
   internal void TriggerWinAnimation(double winAmount, double betAmount)
   {
-    if (winAmount < betAmount * normalWinMultiplier) return;
-
-    SnapResetWinAnimation();
-    _bigWinActive = _superWinActive = _winTextMoved = false;
-
-    bool isBigWin = winAmount >= betAmount * bigWinMultiplier && winAmount < betAmount * superWinMultiplier;
-    bool isSuperWin = winAmount >= betAmount * superWinMultiplier;
-
-    _winCoroutine = StartCoroutine(WinAnimationCoroutine(winAmount, isBigWin, isSuperWin));
+    if (winAmount <= 0 || betAmount <= 0) return;
+    if (winAnim != null) winAnim.Trigger(winAmount, betAmount);
   }
 
   internal void ResetWinAnimation()
   {
     ResetWinUIText();
-    bool wasLerping = _winCoroutine != null;
-
-    if (_winCoroutine != null) { StopCoroutine(_winCoroutine); _winCoroutine = null; }
-    if (_coinWatcher != null) { StopCoroutine(_coinWatcher); _coinWatcher = null; }
-    foreach (var t in _winTweens) t?.Kill();
-    _winTweens.Clear();
-
-    if (wasLerping && Win_Text != null && _currentWinAmount > 0)
-    {
-      Win_Text.text = TextFormatter.FormatSprite(_currentWinAmount, _currentDecimalPlaces);
-      Win_Text.transform.localScale = Vector3.one;
-    }
-
-    ScaleOutObject(Win_Text.transform);
-    ScaleOutObject(bigWinBgRect);
-    ScaleOutObject(bigWinAnimRect);
-    ScaleOutObject(superWinAnimRect);
-
-    if (superWinBgAnim != null)
-    {
-      var bg = superWinBgAnim;
-      _winTweens.Add(bg.FadeAlpha(0f, superWinBgFadeOut).OnComplete(() => { bg.StopAnimation(); bg.ResetToFirstFrame(); }));
-    }
-    if (_coinLoopShown) TriggerCoinEndAndSelfFade();
-
-    if (Win_Text != null)
-    {
-      RectTransform winRT = Win_Text.GetComponent<RectTransform>();
-      winRT.DOAnchorPosY(_winTextOriginalY, 0.4f).SetEase(Ease.InBack);
-    }
-
-    _bigWinActive = _superWinActive = _winTextMoved = false;
-    _coinLoopShown = _coinEndPlayed = false;
-    _currentWinAmount = 0;
-    isWinAnimating = false;
+    if (winAnim != null) winAnim.Skip();
   }
 
-  private void SnapResetWinAnimation()
+  internal System.Collections.IEnumerator WaitWinAnimDone()
   {
-    if (_winCoroutine != null) { StopCoroutine(_winCoroutine); _winCoroutine = null; }
-    if (_coinWatcher != null) { StopCoroutine(_coinWatcher); _coinWatcher = null; }
-    foreach (var t in _winTweens) t?.Kill();
-    _winTweens.Clear();
-    isWinAnimating = false;
-
-    if (Win_Text != null)
-    {
-      Win_Text.transform.localScale = Vector3.zero;
-      RectTransform winRT = Win_Text.GetComponent<RectTransform>();
-      winRT.anchoredPosition = new Vector2(winRT.anchoredPosition.x, _winTextOriginalY);
-    }
-    if (bigWinBgRect) bigWinBgRect.localScale = Vector3.zero;
-    if (bigWinAnimRect) bigWinAnimRect.localScale = Vector3.zero;
-    if (bigWinAnim) bigWinAnim.StopAnimation();
-    if (superWinAnimRect) superWinAnimRect.localScale = Vector3.zero;
-    if (superWinBgAnim) { superWinBgAnim.StopAnimation(); superWinBgAnim.SetAlpha(0f); superWinBgAnim.ResetToFirstFrame(); }
-    if (superWinCoinAnim) { superWinCoinAnim.StopAnimation(); superWinCoinAnim.SetAlpha(0f); superWinCoinAnim.ResetToFirstFrame(); }
-
-    _bigWinActive = _superWinActive = _winTextMoved = false;
-    _coinLoopShown = _coinEndPlayed = false;
-  }
-
-  private IEnumerator WinAnimationCoroutine(double winAmount, bool isBigWin, bool isSuperWin)
-  {
-    float moveThreshold = isSuperWin ? superWinTextMoveThreshold
-                        : isBigWin ? bigWinTextMoveThreshold
-                        : float.MaxValue;
-
-    float duration = isSuperWin ? superWinLerpDuration
-                   : isBigWin ? bigWinLerpDuration
-                   : normalLerpDuration;
-
-    int decimalPlaces = TextFormatter.GetSignificantDecimals(winAmount, 2);
-    _currentWinAmount = winAmount;
-    _currentDecimalPlaces = decimalPlaces;
-    isWinAnimating = true;
-
-    _winTweens.Add(Win_Text.transform.DOScale(Vector3.one, scaleUpDuration).SetEase(Ease.OutBack));
-
-    float elapsed = 0f;
-    while (elapsed < duration)
-    {
-      elapsed += Time.deltaTime;
-      float t = Mathf.Clamp01(elapsed / duration);
-
-      Win_Text.text = TextFormatter.FormatSprite((double)t * winAmount, decimalPlaces);
-
-      if ((isBigWin || isSuperWin) && !_winTextMoved && t >= moveThreshold)
-      {
-        audioController.Play("bigwin");
-        _winTextMoved = true;
-        StartMoveWinTextDown();
-      }
-
-      if (isSuperWin && !_superWinActive && t >= superWinExtraThreshold)
-      {
-        _superWinActive = true;
-        ScaleInObject(superWinAnimRect);
-        if (superWinBgAnim != null)
-        {
-          superWinBgAnim.SetAlpha(0f);
-          superWinBgAnim.StartAnimation();
-          _winTweens.Add(superWinBgAnim.FadeAlpha(1f, superWinBgFadeIn));
-          _coinWatcher = StartCoroutine(WatchBgShowCoin());
-        }
-      }
-
-      yield return null;
-    }
-
-    Win_Text.text = TextFormatter.FormatSprite(winAmount, decimalPlaces);
-
-    yield return new WaitForSeconds(postLerpHoldDuration);
-
-    ScaleOutObject(Win_Text.transform);
-    if (_bigWinActive || _superWinActive)
-    {
-      ScaleOutObject(bigWinBgRect);
-      ScaleOutObject(bigWinAnimRect);
-    }
-    if (_superWinActive)
-    {
-      ScaleOutObject(superWinAnimRect);
-      if (superWinBgAnim != null)
-      {
-        var bg = superWinBgAnim;
-        _winTweens.Add(bg.FadeAlpha(0f, superWinBgFadeOut).OnComplete(() => { bg.StopAnimation(); bg.ResetToFirstFrame(); }));
-      }
-      TriggerCoinEndAndSelfFade();
-    }
-
-    _winCoroutine = null;
-    isWinAnimating = false;
-  }
-
-  private IEnumerator WatchBgShowCoin()
-  {
-    while (superWinBgAnim != null && superWinBgAnim.Progress < superWinBgProgressForCoin)
-      yield return null;
-    _coinWatcher = null;
-    if (_coinLoopShown || superWinCoinAnim == null) yield break;
-    _coinLoopShown = true;
-    superWinCoinAnim.SetAlpha(0f);
-    superWinCoinAnim.StartAnimation();
-    _winTweens.Add(superWinCoinAnim.FadeAlpha(1f, superWinCoinFadeIn));
-  }
-
-  private void TriggerCoinEndAndSelfFade()
-  {
-    if (superWinCoinAnim == null || _coinEndPlayed) return;
-    _coinEndPlayed = true;
-    var coin = superWinCoinAnim;
-    coin.PlayEndSequence();
-    float endDuration = coin.GetEndSequenceDuration();
-    _winTweens.Add(DOVirtual.DelayedCall(endDuration, () =>
-    {
-      if (coin == null) return;
-      coin.FadeAlpha(0f, superWinCoinFadeOut).OnComplete(() => { coin.StopAnimation(); coin.ResetToFirstFrame(); });
-    }));
-  }
-
-  private void StartMoveWinTextDown()
-  {
-    RectTransform rt = Win_Text.GetComponent<RectTransform>();
-    Tween move = rt.DOAnchorPosY(bigWinTextTargetY, textMoveDuration)
-      .SetEase(Ease.Linear)
-      .OnComplete(() =>
-      {
-        _bigWinActive = true;
-        bigWinAnim.StartAnimation();
-        ScaleInObject(bigWinBgRect);
-        ScaleInObject(bigWinAnimRect);
-        // TODO: Add ImageAnimation references for bigWin when assets are ready
-      });
-    _winTweens.Add(move);
-  }
-
-  private void ScaleInObject(RectTransform rt)
-  {
-    if (rt == null) return;
-    rt.localScale = Vector3.zero;
-    _winTweens.Add(rt.DOScale(Vector3.one, scaleUpDuration).SetEase(Ease.OutBack));
-  }
-
-  private void ScaleOutObject(Transform tr)
-  {
-    if (tr == null || tr.localScale == Vector3.zero) return;
-    _winTweens.Add(tr.DOScale(Vector3.zero, 0.4f).SetEase(Ease.InBack));
+    if (winAnim == null) yield break;
+    yield return winAnim.WaitUntilDone();
   }
 
   internal void DisconnectionPopup()

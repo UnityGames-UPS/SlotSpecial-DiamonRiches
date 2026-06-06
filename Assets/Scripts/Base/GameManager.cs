@@ -118,6 +118,7 @@ public class GameManager : MonoBehaviour
       uIManager.PopulateSymbolsPayout(socketController.InitSymbolData);
     }
     uIManager.RefreshDiamondPayoutTexts(currentTotalBet);
+    uIManager.PopulateInfoPageDiamondPayouts();
   }
 
   void ExecuteSpin()
@@ -126,6 +127,11 @@ public class GameManager : MonoBehaviour
     // without populating the spinRoutine field, so the null-check below would otherwise let a stray
     // click launch a parallel SpinRoutine that fights the active one for the reel tweens.
     if (isAutoSpin || isFreeSpin || isSpinning) return;
+
+    // If the win-animation sequence is mid-flight, treat the spin click as a skip so OneSpinFlow's
+    // WaitWinAnimDone gate resolves promptly and we can launch the next spin.
+    if (uIManager.winAnim != null && uIManager.winAnim.IsPlaying)
+      uIManager.winAnim.Skip();
 
     if (spinRoutine != null)
     {
@@ -139,6 +145,8 @@ public class GameManager : MonoBehaviour
   internal void StartAutoSpin(int count)
   {
     if (isAutoSpin || isFreeSpin || isSpinning) return;
+    if (uIManager.winAnim != null && uIManager.winAnim.IsPlaying)
+      uIManager.winAnim.Skip();
     _autoUntilFeature = (count < 0);
     _autoSpinRemaining = count;
     isAutoSpin = true;
@@ -331,41 +339,10 @@ public class GameManager : MonoBehaviour
     yield return OnSpin();
     // yield return new WaitForSecondsRealtime(0.5f);
     yield return OnSpinEnd();
-  }
-
-  // TODO: reimplement against payload.freeSpins / triggeredFeatures (referenced removed fields iswheeltrigger / wheelBonus / wildFeaturePending)
-  // internal bool LastSpinWasFreeSpinTrigger()
-  // {
-  //   var p = socketController.ResultData?.payload;
-  //   if (p == null) return false;
-  //   if (!p.iswheeltrigger) return false;
-  //   return p.wheelBonus != null && string.Equals(p.wheelBonus.featureType, "freeSpin", System.StringComparison.OrdinalIgnoreCase);
-  // }
-  //
-  // internal bool LastSpinWasWildTrigger()
-  // {
-  //   var p = socketController.ResultData?.payload;
-  //   if (p == null) return false;
-  //   if (!p.iswheeltrigger) return false;
-  //   if (p.wheelBonus == null) return false;
-  //   if (!string.Equals(p.wheelBonus.featureType, "wild", System.StringComparison.OrdinalIgnoreCase)) return false;
-  //   return p.wildFeaturePending > 0;
-  // }
-  //
-  // int LastSpinFreeSpinAward()
-  // {
-  //   return socketController.ResultData?.payload?.wheelBonus?.featureValue ?? 0;
-  // }
-  //
-  // double LastSpinWinAmount()
-  // {
-  //   return socketController.ResultData?.payload?.winAmount ?? 0;
-  // }
-
-  void OnFreeSpinsComplete()
-  {
-    isFreeSpin = false;
-    audioController.Play("bg");
+    // Auto / free spin loops must wait for the win-animation sequence to fully reset before the
+    // next spin can kick off. Skip() (called from ExecuteSpin / StartAutoSpin / OnSpinStart) makes
+    // this resolve promptly.
+    if(isAutoSpin || isFreeSpin) yield return uIManager.WaitWinAnimDone();
   }
 
   IEnumerator StopSpin()
@@ -399,9 +376,8 @@ public class GameManager : MonoBehaviour
 
   IEnumerator OnSpin()
   {
-    // if (!isFreeSpin)
-    //   uIManager.SetPlayerBalance(socketController.PlayerData.balance - currentTotalBet);
-
+    if (!isFreeSpin)
+      uIManager.SetPlayerBalance(socketController.PlayerData.balance - currentTotalBet);
 
     // Stop button is usable in manual, auto, AND free-spin modes (per spec: stop must remain
     // available to interrupt auto/free chains). Explicitly re-enable interactable — the previous
@@ -416,23 +392,7 @@ public class GameManager : MonoBehaviour
     socketController.AccumulateResult(betCounter);
     yield return new WaitUntil(() => socketController.isResultdone);
 
-    // HandleAutoUntilFeatureCutoff();
-
     slotManager.PopulateSlotMatrix(socketController.ResultData.matrix);
-
-    // var wildPositions = socketController.ResultData.payload.wildPositions;
-    // bool hasWild = wildPositions != null && wildPositions.Count > 0;
-    // if (hasWild)
-    // {
-    //   if (StopSpin_Button.gameObject.activeSelf)
-    //     StopSpin_Button.gameObject.SetActive(false);
-    //   if (isFreeSpin && freeSpinController != null)
-    //     freeSpinController.SetButtonsInteractable(false, false);
-
-
-    //   if (!isFreeSpin)
-    //     StopSpin_Button.gameObject.SetActive(true);
-    // }
 
     int waitFor = 10;
     for (int i = 0; i < waitFor; i++)
@@ -498,10 +458,8 @@ public class GameManager : MonoBehaviour
       }
     }
 
-    // if (socketController.ResultData.payload.winAmount > 0)
-    // {
-    //   uIManager.TriggerWinAnimation(socketController.ResultData.payload.winAmount, currentTotalBet);
-    // }
+    if (socketController.ResultData.payload.winAmount > 0)
+      uIManager.TriggerWinAnimation(socketController.ResultData.payload.winAmount, currentTotalBet);
 
     // Diamond feature: server always sends diamondCount + diamondPositions (even for the
     // single-diamond idle case).
