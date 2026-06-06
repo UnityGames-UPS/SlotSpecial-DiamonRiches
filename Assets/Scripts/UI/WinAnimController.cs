@@ -65,6 +65,10 @@ public class WinAnimController : MonoBehaviour
   private ActiveAnim _activeAnim = ActiveAnim.None;
 
   internal bool IsPlaying { get; private set; }
+  internal System.Action<string> playAudio;
+  internal System.Action<string, float> fadeAudio;
+  [SerializeField] private float winAudioFadeOutDuration = 0.35f;
+  private string _activeAudioKey;
 
   private void Awake()
   {
@@ -86,9 +90,21 @@ public class WinAnimController : MonoBehaviour
   {
     if (totalBet <= 0) return;
     Tier tier = ResolveTier(winAmount, totalBet);
-    if (tier == Tier.None) return;
+
+    // Audio plays for any win > 0, even below the TextOnly threshold (which skips the animation).
+    // Big/Mega/Booming → bigwin; everything else with a win → normalwin.
+    string audioKey = tier >= Tier.Big ? "bigwin" : (winAmount > 0 ? "normalwin" : null);
+
+    if (tier == Tier.None)
+    {
+      if (audioKey != null) playAudio?.Invoke(audioKey);
+      return;
+    }
 
     if (IsPlaying) Skip();
+
+    _activeAudioKey = audioKey;
+    playAudio?.Invoke(_activeAudioKey);
 
     if (_runRoutine != null) StopCoroutine(_runRoutine);
     _runRoutine = StartCoroutine(Run(winAmount, totalBet, tier));
@@ -98,6 +114,11 @@ public class WinAnimController : MonoBehaviour
   {
     if (!IsPlaying) return;
     _skip = true;
+    if (!string.IsNullOrEmpty(_activeAudioKey))
+    {
+      fadeAudio?.Invoke(_activeAudioKey, winAudioFadeOutDuration);
+      _activeAudioKey = null;
+    }
   }
 
   internal IEnumerator WaitUntilDone()
@@ -264,6 +285,7 @@ public class WinAnimController : MonoBehaviour
 
     SnapHideAll();
     _activeAnim = ActiveAnim.None;
+    _activeAudioKey = null;
     _skip = false;
     IsPlaying = false;
     _runRoutine = null;

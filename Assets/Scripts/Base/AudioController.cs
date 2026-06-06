@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using DG.Tweening;
 using UnityEngine;
 
 public class AudioController : MonoBehaviour
@@ -55,6 +56,16 @@ public class AudioController : MonoBehaviour
   internal void Stop(string type)
   {
     if (map.TryGetValue(type, out var entry)) entry.source.Stop();
+  }
+
+  internal void FadeOut(string type, float duration)
+  {
+    if (!map.TryGetValue(type, out var entry)) return;
+    var source = entry.source;
+    if (source == null || !source.isPlaying) return;
+    float startVol = source.volume;
+    source.DOKill();
+    source.DOFade(0f, duration).OnComplete(() => { source.Stop(); source.volume = startVol; });
   }
 
   internal void StopAll()

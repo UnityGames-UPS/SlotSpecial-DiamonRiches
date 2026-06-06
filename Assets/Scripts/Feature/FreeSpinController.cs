@@ -54,18 +54,29 @@ public class FreeSpinController : MonoBehaviour
   private readonly List<Tween> _pulseTweens = new();
 
   internal GameManager gameManager;
+  internal Action<string> playButtonAudio;
 
   void Awake()
   {
     if (startPanelOk_Button != null)
     {
       startPanelOk_Button.onClick.RemoveAllListeners();
-      startPanelOk_Button.onClick.AddListener(() => { _startOkClicked = true; startPanelOk_Button.interactable = false; });
+      startPanelOk_Button.onClick.AddListener(() =>
+      {
+        playButtonAudio?.Invoke("button");
+        _startOkClicked = true;
+        startPanelOk_Button.interactable = false;
+      });
     }
     if (endPanelOk_Button != null)
     {
       endPanelOk_Button.onClick.RemoveAllListeners();
-      endPanelOk_Button.onClick.AddListener(() => { _endOkClicked = true; endPanelOk_Button.interactable = false; });
+      endPanelOk_Button.onClick.AddListener(() =>
+      {
+        playButtonAudio?.Invoke("button");
+        _endOkClicked = true;
+        endPanelOk_Button.interactable = false;
+      });
     }
 
     SnapHide(startPanelCG);

@@ -72,14 +72,25 @@ public class GameManager : MonoBehaviour
     SetButton(TurboOFF_Button, () => { ToggleTurboMode(); });
     SetButton(StopSpin_Button, () => StartCoroutine(StopSpin()));
 
-    if (freeSpinController != null) freeSpinController.gameManager = this;
+    if (freeSpinController != null)
+    {
+      freeSpinController.gameManager = this;
+      freeSpinController.playButtonAudio = (s) => audioController.Play(s);
+    }
 
     socketController.OnInit = InitGame;
     uIManager.ToggleAudio = audioController.SetMuteAll;
     uIManager.playButtonAudio = (s) => audioController.Play(s);
+    if (uIManager.winAnim != null)
+    {
+      uIManager.winAnim.playAudio = (s) => audioController.Play(s);
+      uIManager.winAnim.fadeAudio = (s, d) => audioController.FadeOut(s, d);
+    }
     uIManager.OnExit = () => socketController.CloseSocket();
     uIManager.OnLowBalConfirm = () => ToggleButtonGrp(true);
     socketController.ShowDisconnectionPopup = uIManager.DisconnectionPopup;
+
+    ApplyTurboButtonVisibility();
   }
 
   private void SetButton(Button button, Action action, bool slotButton = false)
@@ -173,18 +184,15 @@ public class GameManager : MonoBehaviour
 
   void ToggleTurboMode()
   {
-    audioController.Play("turbo");
     turboMode = !turboMode;
-    if (turboMode)
-    {
-      TurboON_Button.gameObject.SetActive(false);
-      TurboOFF_Button.gameObject.SetActive(true);
-    }
-    else
-    {
-      TurboOFF_Button.gameObject.SetActive(false);
-      TurboON_Button.gameObject.SetActive(true);
-    }
+    ApplyTurboButtonVisibility();
+  }
+
+  // ON button (no cross) visible when turbo is on; OFF button (cross) visible when turbo is off.
+  void ApplyTurboButtonVisibility()
+  {
+    if (TurboON_Button) TurboON_Button.gameObject.SetActive(turboMode);
+    if (TurboOFF_Button) TurboOFF_Button.gameObject.SetActive(!turboMode);
   }
 
   IEnumerator AutoSpinRoutine()
@@ -342,7 +350,7 @@ public class GameManager : MonoBehaviour
     // Auto / free spin loops must wait for the win-animation sequence to fully reset before the
     // next spin can kick off. Skip() (called from ExecuteSpin / StartAutoSpin / OnSpinStart) makes
     // this resolve promptly.
-    if(isAutoSpin || isFreeSpin) yield return uIManager.WaitWinAnimDone();
+    if (isAutoSpin || isFreeSpin) yield return uIManager.WaitWinAnimDone();
   }
 
   IEnumerator StopSpin()
@@ -383,9 +391,13 @@ public class GameManager : MonoBehaviour
     // available to interrupt auto/free chains). Explicitly re-enable interactable — the previous
     // spin's StopSpin click flow flips it false on press and back true on release, so a click
     // that races with spin teardown can leave the next spin starting with interactable=false.
+    // Turbo mode auto-stops every spin, so the manual stop button stays hidden throughout.
     immediateStop = false;
-    StopSpin_Button.gameObject.SetActive(true);
-    StopSpin_Button.interactable = true;
+    if (!turboMode)
+    {
+      StopSpin_Button.gameObject.SetActive(true);
+      StopSpin_Button.interactable = true;
+    }
 
     yield return slotManager.StartSpin();
 
@@ -394,10 +406,16 @@ public class GameManager : MonoBehaviour
 
     slotManager.PopulateSlotMatrix(socketController.ResultData.matrix);
 
+    if(turboMode)
+    {
+      // Turbo: behave as if the user pressed StopSpin the instant the result arrived. The flag
+      // also makes SlotController.StopSpin skip its per-reel stagger so all reels land together.
+      immediateStop = true;
+    }
     int waitFor = 10;
     for (int i = 0; i < waitFor; i++)
     {
-      if (immediateStop && i>7)
+      if (immediateStop && i > 7)
       {
         break;
       }
@@ -405,7 +423,7 @@ public class GameManager : MonoBehaviour
       yield return new WaitForSecondsRealtime(0.1f);
     }
 
-    yield return slotManager.StopSpin(() => audioController.Play("spin_stop"));
+    yield return slotManager.StopSpin(() => audioController.Play("reelstop"));
     immediateStop = false;
 
     if (StopSpin_Button.gameObject.activeSelf)
@@ -415,7 +433,7 @@ public class GameManager : MonoBehaviour
   IEnumerator OnSpinEnd()
   {
     // audioController.Stop("spin_stop");
-    
+
     uIManager.UpdatePlayerInfo();
 
     // Free-spin trigger / retrigger gate: must run BEFORE diamond / lineWins presentation so the
@@ -453,8 +471,8 @@ public class GameManager : MonoBehaviour
       if (isEntry)
       {
         isFreeSpin = true;
+        audioController.Play("fbg");
         yield return freeSpinController.FadeInFreeSpinUi();
-        audioController.Play("FP");
       }
     }
 
@@ -480,8 +498,7 @@ public class GameManager : MonoBehaviour
       if (isAutoSpin) diamondCycle = StartCoroutine(slotManager.PlayDiamondTriggeredCycle(feats.diamondPositions));
       else slotManager.StartDiamondTriggered(feats.diamondPositions);
     }
-    else if (diamondIdle
-             && SlotController.TryParseDiamondPos(feats.diamondPositions[0], out int idleRow, out int idleCol))
+    else if (diamondIdle && SlotController.TryParseDiamondPos(feats.diamondPositions[0], out int idleRow, out int idleCol))
     {
       StartCoroutine(slotManager.PlayDiamondIdle(idleRow, idleCol));
     }
@@ -499,57 +516,6 @@ public class GameManager : MonoBehaviour
     // the matrix matches what a manual-spin trigger would have shown.
     if (diamondTrigger && !isAutoSpin && !isFreeSpin)
       slotManager.StartDiamondTriggered(feats.diamondPositions);
-
-    // bool autoContinued = isFreeSpin || isAutoSpin || LastSpinWasWildTrigger() || LastSpinWasFreeSpinTrigger();
-    // if (autoContinued)
-    //   yield return WaitWinAnimOrSkip();
-  }
-
-  IEnumerator TriggerFeature(int count, List<Vector2Int> streak)
-  {
-    ResetInARowAnimations(animate: false);
-    ImageAnimation feature = null;
-
-    if (count == 3) feature = ThreeInARow;
-    else if (count == 4) feature = FourInARow;
-    else if (count == 5) feature = FiveInARow;
-
-    if (feature == null)
-    {
-      Debug.LogError("Invalid feature count: " + count);
-      yield break;
-    }
-
-    Vector3 finalPosition;
-
-    if (count % 2 == 1) // 3 or 5
-    {
-      // Exact center
-      Vector2Int centerPos = streak[count / 2];
-      finalPosition = GetSlotTransform(centerPos.x, centerPos.y).position;
-    }
-    else // 4 in a row
-    {
-      // Between middle two slots
-      Vector2Int leftCenter = streak[(count / 2) - 1];
-      Vector2Int rightCenter = streak[count / 2];
-
-      Transform leftT = GetSlotTransform(leftCenter.x, leftCenter.y);
-      Transform rightT = GetSlotTransform(rightCenter.x, rightCenter.y);
-
-      finalPosition = (leftT.position + rightT.position) / 2f;
-    }
-    audioController.Play("inarow");
-    feature.transform.position = finalPosition;
-    feature.gameObject.SetActive(true);
-    feature.StartAnimation();
-    yield return feature.rendererDelegate.DOFade(1, 0.5f).WaitForCompletion();
-    yield return new WaitForSeconds(1.8f);
-  }
-
-  Transform GetSlotTransform(int row, int col)
-  {
-    return slotManager.slotMatrix[col].slotImages[row].transform;
   }
 
   void SetAutoSpinUI(bool autoActive)
@@ -583,8 +549,6 @@ public class GameManager : MonoBehaviour
 
   private void OnBetChange(bool inc)
   {
-    if (audioController) audioController.Play("bet_change");
-
     int lastIndex = socketController.InitLineBetData.bets.Count - 1;
     if (inc)
     {
@@ -608,38 +572,5 @@ public class GameManager : MonoBehaviour
     if (socketController == null || socketController.InitLineBetData == null || socketController.InitLineBetData.bets == null) return;
     if (ToatlBetMinus_Button) ToatlBetMinus_Button.interactable = true;
     if (TotalBetPlus_Button) TotalBetPlus_Button.interactable = true;
-  }
-
-  void ResetInARowAnimations(bool animate = true)
-  {
-    if (animate)
-    {
-      ThreeInARow.rendererDelegate.DOFade(0, 0.5f).OnComplete(() =>
-      {
-        ThreeInARow.StopAnimation();
-        ThreeInARow.gameObject.SetActive(false);
-      });
-
-      FourInARow.rendererDelegate.DOFade(0, 0.5f).OnComplete(() =>
-      {
-        FourInARow.StopAnimation();
-        FourInARow.gameObject.SetActive(false);
-      });
-
-      FiveInARow.rendererDelegate.DOFade(0, 0.5f).OnComplete(() =>
-      {
-        FiveInARow.StopAnimation();
-        FiveInARow.gameObject.SetActive(false);
-      });
-    }
-    else
-    {
-      ThreeInARow.StopAnimation();
-      ThreeInARow.gameObject.SetActive(false);
-      FourInARow.StopAnimation();
-      FourInARow.gameObject.SetActive(false);
-      FiveInARow.StopAnimation();
-      FiveInARow.gameObject.SetActive(false);
-    }
   }
 }

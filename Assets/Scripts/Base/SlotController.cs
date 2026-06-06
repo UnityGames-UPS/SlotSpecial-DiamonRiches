@@ -135,7 +135,7 @@ public class SlotController : MonoBehaviour
     ResetAllIcons();
 
     List<Tween> initTweens = new();
-    audioController.Play("spin_start");
+    audioController.Play("spinning");
     for (int i = 0; i < Slot_Transform.Length; i++)
     {
       initTweens.Add(InitializeTweening(Slot_Transform[i]));
@@ -218,9 +218,14 @@ public class SlotController : MonoBehaviour
       int landed = i;
       alltweens[i].OnComplete(() => { if (landed < _reelLanded.Length) _reelLanded[landed] = true; });
 
-      if (!gameManager.immediateStop)
-      {
+      // Immediate-stop case still needs one reel-stop SFX for the simultaneous landing — so play
+      // unconditionally on reel 0, then per-reel only while the user hasn't pressed Stop.
+      bool immediate = gameManager.immediateStop;
+      if (i == 0 || !immediate)
         playFallAudio?.Invoke();
+
+      if (!immediate)
+      {
         // Interruptible inter-reel delay: the moment Stop is pressed (immediateStop -> true)
         // bail out of the wait so the remaining reels are stopped on the same frame.
         float wait = gameManager.turboMode ? 0.2f : 0.6f;
@@ -454,6 +459,8 @@ public class SlotController : MonoBehaviour
   {
     if (freeSpinTriggeredSprites == null || freeSpinTriggeredSprites.Count == 0)
       yield break;
+
+    audioController.Play("freespinhit");
 
     // Select the same icons as the per-column chain anim: lowest-row scatter in each of the
     // first three columns. Ignores scatterPositions to keep the two paths consistent when a
@@ -698,7 +705,6 @@ public class SlotController : MonoBehaviour
     // Auto / free spin: block on the synced pass to keep the win visible before the next chained
     // spin. Wait for the scatter animations first.
     yield return WaitForScatterChain();
-    audioController.Play("win");
     bool singleLine = lineWins.Count == 1;
     yield return PlaySyncedPass(lineWins, showPayouts: singleLine);
 
@@ -741,8 +747,6 @@ public class SlotController : MonoBehaviour
     yield return WaitForScatterChain();
 
     bool singleLine = lineWins.Count == 1;
-
-    audioController.Play("win");
 
     // Synchronized first pass shows every winning line with no darkening. Payouts shown only
     // when there is exactly one winning line.
@@ -816,7 +820,6 @@ public class SlotController : MonoBehaviour
         if (col < 0 || col >= slotMatrix.Count) continue;
         if (row < 0 || row >= slotMatrix[col].slotImages.Count) continue;
         bool show = i == midIndex && slotMatrix[col].slotImages[row].id != WildId;
-        audioController.Play("blink");
         _activeWinIterCoroutines.Add(StartCoroutine(slotMatrix[col].slotImages[row].PlayWinIteration(this, animationOverlayParent, show, show ? lineWin.winAmount : 0, isSyncedPass: false)));
       }
       for (int i = 0; i < _activeWinIterCoroutines.Count; i++)
@@ -841,7 +844,6 @@ public class SlotController : MonoBehaviour
           if (row < 0 || row >= slotMatrix[col].slotImages.Count) continue;
           bool show = i == midIndex && slotMatrix[col].slotImages[row].id != WildId;
           double payout = show ? lineWin.winAmount : 0;
-          audioController.Play("blink");
           _activeWinIterCoroutines.Add(StartCoroutine(slotMatrix[col].slotImages[row].PlayWinIteration(this, animationOverlayParent, show, payout, isSyncedPass: false)));
         }
         for (int i = 0; i < _activeWinIterCoroutines.Count; i++)
@@ -880,6 +882,7 @@ public class SlotController : MonoBehaviour
   internal void StartDiamondTriggered(List<string> diamondPositions)
   {
     if (diamondPositions == null) return;
+    audioController.Play("diamond");
     for (int i = 0; i < diamondPositions.Count; i++)
     {
       if (!TryParsePosition(diamondPositions[i], out int row, out int col)) continue;
@@ -895,6 +898,7 @@ public class SlotController : MonoBehaviour
   internal IEnumerator PlayDiamondTriggeredCycle(List<string> diamondPositions)
   {
     if (diamondPositions == null) yield break;
+    audioController.Play("diamond");
     var coros = new List<Coroutine>();
     for (int i = 0; i < diamondPositions.Count; i++)
     {

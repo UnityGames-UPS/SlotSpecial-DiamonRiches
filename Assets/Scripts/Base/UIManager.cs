@@ -39,9 +39,8 @@ public class UIManager : MonoBehaviour
   private bool _dragAtEdge;
 
   [Header("Sound Toggle")]
-  [SerializeField] private Button SoundToggle_button;
-  [SerializeField] private Sprite soundON;
-  [SerializeField] private Sprite soundOFF;
+  [SerializeField] private Button SoundON_Button;
+  [SerializeField] private Button SoundOFF_Button;
   private bool isSound = true;
 
   [Header("Win Animation")]
@@ -60,10 +59,6 @@ public class UIManager : MonoBehaviour
   [Header("Reconnection Popup")]
   [SerializeField] private GameObject ReconectionPopup_Object;
 
-  [Header("Startup Popup")]
-  [SerializeField] private GameObject StartupPanel;
-  [SerializeField] private Button CloseStartupPanelBtn;
-
   [Header("Quit Popup")]
   [SerializeField] private GameObject QuitPopupObject;
   [SerializeField] private Button GameExit_Button;
@@ -71,7 +66,6 @@ public class UIManager : MonoBehaviour
   [SerializeField] private Button yes_Button;
 
   private bool isExit = false;
-  private const string HasSeenStartupKey = "hasSeenStartup";
 
   [Header("JS / Audio")]
   [SerializeField] private JSFunctCalls jsFunctCalls;
@@ -101,8 +95,6 @@ public class UIManager : MonoBehaviour
 
   private void Awake()
   {
-    if (StartupPanel != null) StartupPanel.SetActive(false);
-
     if (jsFunctCalls != null)
       jsFunctCalls.RegisterVisibilityListener(gameObject.name);
 
@@ -136,15 +128,10 @@ public class UIManager : MonoBehaviour
     SetButton(paytable_Button, () => { OpenPopup(payTablePopup_Object); });
     SetButton(paytableExit_Button, () => payTablePopup_Object.SetActive(false));
     SetButton(paytableBgExit_Button, () => payTablePopup_Object.SetActive(false));
-    // SetButton(SoundToggle_button, ToggleSound);
+    SetButton(SoundON_Button, () => SetSound(false));
+    SetButton(SoundOFF_Button, () => SetSound(true));
     SetButton(CloseDisconnect_Button, CallOnExitFunction);
     SetButton(Close_Button, () => { LowBalancePopup_Object.SetActive(false); OnLowBalConfirm?.Invoke(); });
-
-    if (CloseStartupPanelBtn) CloseStartupPanelBtn.onClick.RemoveAllListeners();
-    if (CloseStartupPanelBtn) CloseStartupPanelBtn.onClick.AddListener(() =>
-    {
-      if (StartupPanel != null) StartupPanel.SetActive(false);
-    });
 
     // Initialize other settings
     foreach (var page in paytableList)
@@ -154,6 +141,21 @@ public class UIManager : MonoBehaviour
     }
     paytableList[CurrentIndex = 0].SetActive(true);
     InitIndicators();
+    ApplySoundButtonVisibility();
+  }
+
+  private void SetSound(bool soundOn)
+  {
+    isSound = soundOn;
+    // SetMuteAll(true) mutes; isSound==true means audio plays, so invoke with !isSound.
+    ToggleAudio?.Invoke(!isSound);
+    ApplySoundButtonVisibility();
+  }
+
+  private void ApplySoundButtonVisibility()
+  {
+    if (SoundON_Button) SoundON_Button.gameObject.SetActive(isSound);
+    if (SoundOFF_Button) SoundOFF_Button.gameObject.SetActive(!isSound);
   }
 
   private void SetButton(Button button, Action action)
@@ -504,21 +506,6 @@ public class UIManager : MonoBehaviour
     Debug.Log("UNITY FOCUS CHANGED: " + value + " (focused: " + focused + ")");
     audioController?.SetMuteAll(!focused);
     socketController?.HandleFocusChange(focused);
-  }
-
-  private void ToggleSound()
-  {
-    isSound = !isSound;
-    if (isSound)
-    {
-      SoundToggle_button.image.sprite = soundOFF;
-      ToggleAudio?.Invoke(false);
-    }
-    else
-    {
-      SoundToggle_button.image.sprite = soundON;
-      ToggleAudio?.Invoke(true);
-    }
   }
 
 }
