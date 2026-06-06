@@ -455,41 +455,7 @@ public class GameManager : MonoBehaviour
   IEnumerator OnSpinEnd()
   {
     // audioController.Stop("spin_stop");
-
-    // if (socketController.ResultData.payload.goldenPositions.Count > 0)
-    // {
-    //   if (isFreeSpin && freeSpinController != null)
-    //     freeSpinController.SetButtonsInteractable(false, false);
-
-    //   if (socketController.ResultData.payload.iswheeltrigger)
-    //   {
-    //     var gs = socketController.ResultData.payload.wheelBonus.goldenSymbols;
-    //     if (gs != null && gs.count >= 3)
-    //     {
-    //       var streak = gs.positions.ConvertAll(col => new Vector2Int(gs.row, col));
-    //       yield return new WaitForSecondsRealtime(1f);
-    //       yield return TriggerFeature(gs.count, streak);
-    //     }
-    //     else
-    //     {
-    //       Debug.LogError("Invalid golden symbols data from wheel bonus");
-    //       yield break;
-    //     }
-
-    //     yield return wheelController.PlayWheel(socketController.ResultData.payload.wheelBonus);
-
-    //     ResetInARowAnimations();
-    //     yield return new WaitForSecondsRealtime(0.5f);
-    //     yield return slotManager.HideGoldIcons();
-    //   }
-    //   else
-    //   {
-    //     yield return slotManager.HideGoldIcons();
-    //   }
-    // }
-
-    // slotManager.ResetWildFeatureIcons();
-
+    
     uIManager.UpdatePlayerInfo();
 
     // Free-spin trigger / retrigger gate: must run BEFORE diamond / lineWins presentation so the

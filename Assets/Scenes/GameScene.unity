@@ -7124,7 +7124,7 @@ MonoBehaviour:
   UiManager: {fileID: 377874625}
   isResultdone: 0
   JSManager: {fileID: 500036493}
-  testToken: b863006d2e7240a98214afc608c096b5
+  testToken: f74f10d0cf70494696a31429b55948c5
 --- !u!114 &500036493
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -17387,7 +17387,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 6185.74, y: 2732.66}
+  m_SizeDelta: {x: 6185.74, y: 3438.68}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1192035553
 MonoBehaviour:

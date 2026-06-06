@@ -452,24 +452,18 @@ public class SlotController : MonoBehaviour
   // third play.
   internal IEnumerator PlayFreeSpinTriggeredSequence(List<string> scatterPositions, Action onThirdPlayStart = null)
   {
-    if (scatterPositions == null || scatterPositions.Count == 0 || freeSpinTriggeredSprites == null || freeSpinTriggeredSprites.Count == 0)
+    if (freeSpinTriggeredSprites == null || freeSpinTriggeredSprites.Count == 0)
       yield break;
 
-    // Free-spin trigger is exactly 3 scatters; server could occasionally send extras (4-scatter
-    // retrigger edge cases). Cap so the centered presentation never overflows.
-    int maxIcons = 3;
-
+    // Select the same icons as the per-column chain anim: lowest-row scatter in each of the
+    // first three columns. Ignores scatterPositions to keep the two paths consistent when a
+    // column holds more than one scatter.
     var icons = new List<SlotIconView>();
     var originalWorld = new List<Vector3>();
-    for (int i = 0; i < scatterPositions.Count && icons.Count < maxIcons; i++)
+    for (int col = 0; col < FreeSpinTriggerColumns; col++)
     {
-      if (!TryParsePosition(scatterPositions[i], out int row, out int col)) continue;
-      if (col < 0 || col >= slotMatrix.Count) continue;
-      if (row < 0 || row >= slotMatrix[col].slotImages.Count) continue;
-      var icon = slotMatrix[col].slotImages[row];
-      // Capture world position BEFORE Lift so the return-to-original target is the icon's
-      // pre-overlay screen position. Lift uses worldPositionStays:true, so capturing after would
-      // give the same value — but doing it before is cheaper and order-independent.
+      var icon = GetColumnFreeSpinIcon(col);
+      if (icon == null) continue;
       originalWorld.Add(icon.transform.position);
       icon.Lift(animationOverlayParent);
       icons.Add(icon);

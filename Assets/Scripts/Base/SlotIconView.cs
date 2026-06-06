@@ -61,6 +61,11 @@ public class SlotIconView : MonoBehaviour
   const int GoldAId = 0;
   const int GoldBId = 1;
   static readonly Vector2 WildWinSizeBump = new Vector2(250f, 250f);
+  // Hardcoded rest sizes for iconImage and AnimLayerImage. Awake-time snapshots of
+  // rectTransform.sizeDelta were unreliable in play mode (some cells captured 0,0 or 250,250),
+  // so we authoritatively pin defaults here instead of trusting the runtime rect state.
+  static readonly Vector2 IconImageDefaultSize = new Vector2(350f, 350f);
+  static readonly Vector2 AnimLayerDefaultSize = new Vector2(350f, 350f);
   [SerializeField] private float wildYOffset = 0f;
   [SerializeField] private Vector2 goldSizeBump = Vector2.zero;
   [SerializeField] private float goldYOffset = 0f;
@@ -82,12 +87,12 @@ public class SlotIconView : MonoBehaviour
     _restLocalPosition = transform.localPosition;
     if (iconImage != null)
     {
-      _iconImageDefaultSize = iconImage.rectTransform.sizeDelta;
+      _iconImageDefaultSize = IconImageDefaultSize;
       _iconImageDefaultAnchoredPos = iconImage.rectTransform.anchoredPosition3D;
     }
     if (AnimLayerImage != null)
     {
-      _specialAnimDefaultSize = AnimLayerImage.rectTransform.sizeDelta;
+      _specialAnimDefaultSize = AnimLayerDefaultSize;
       _specialAnimDefaultAnchoredPos = AnimLayerImage.rectTransform.anchoredPosition3D;
     }
     if (AnimLayerIA != null)
@@ -111,8 +116,8 @@ public class SlotIconView : MonoBehaviour
       borderAnimation.gameObject.SetActive(false);
   }
 
-  void Start()
-  {
+  // void Start()
+  // {
     // if (!previewAnimations) return;
 
     // bgImage.gameObject.SetActive(true);
@@ -120,7 +125,7 @@ public class SlotIconView : MonoBehaviour
 
     // borderAnimation.gameObject.SetActive(true);
     // borderAnimation.StartAnimation();
-  }
+  // }
 
   internal void Lift(Transform overlayParent)
   {
@@ -171,6 +176,7 @@ public class SlotIconView : MonoBehaviour
   {
     iconImage.sprite = image;
     id = ID;
+    // Debug.Log(_iconImageDefaultSize);
     iconImage.rectTransform.sizeDelta = _iconImageDefaultSize + SizeBumpFor(ID);
     iconImage.rectTransform.anchoredPosition3D = _iconImageDefaultAnchoredPos + new Vector3(0f, YOffsetFor(ID), 0f);
   }
@@ -246,7 +252,6 @@ public class SlotIconView : MonoBehaviour
     if (showWinLineText)
     {
       WinAmountText.gameObject.SetActive(true);
-      Debug.Log("Win Payout: " + winAmount.ToString());
       WinAmountText.text = TextFormatter.FormatSprite(winAmount, TextFormatter.GetSignificantDecimals(winAmount), true);
     }
 
