@@ -35,6 +35,8 @@ public class FreeSpinController : MonoBehaviour
   [SerializeField] private GameObject freeSpinsBg;
   [SerializeField] private Image normalBgImage;
   [SerializeField] private Image freeSpinsBgImage;
+  [SerializeField] private CanvasGroup normalBgDotsCG;
+  [SerializeField] private BackgroundDotsField normalBgDotsField;
 
   [Header("Timing")]
   [SerializeField] private float fadeDuration = 0.4f;
@@ -193,15 +195,23 @@ public class FreeSpinController : MonoBehaviour
 
     Sequence enter = DOTween.Sequence();
     if (normalBgImage != null) enter.Join(normalBgImage.DOFade(0f, fadeDuration));
+    if (normalBgDotsCG != null) enter.Join(normalBgDotsCG.DOFade(0f, fadeDuration));
     if (freeSpinsBgImage != null) enter.Join(freeSpinsBgImage.DOFade(1f, fadeDuration));
     if (uiPanelCG != null) enter.Join(uiPanelCG.DOFade(1f, fadeDuration));
     yield return enter.WaitForCompletion();
+
+    // Layer is fully transparent — stop the Update tick to skip 2500-renderer cost during FS.
+    if (normalBgDotsField != null) normalBgDotsField.Pause();
   }
 
   internal IEnumerator FadeOutFreeSpinUi()
   {
+    // Resume the sparkles before the fade-in so dots are already animating as alpha climbs back to 1.
+    if (normalBgDotsField != null) normalBgDotsField.Resume();
+
     Sequence exit = DOTween.Sequence();
     if (normalBgImage != null) exit.Join(normalBgImage.DOFade(1f, fadeDuration));
+    if (normalBgDotsCG != null) exit.Join(normalBgDotsCG.DOFade(1f, fadeDuration));
     if (freeSpinsBgImage != null) exit.Join(freeSpinsBgImage.DOFade(0f, fadeDuration));
     if (uiPanelCG != null) exit.Join(uiPanelCG.DOFade(0f, fadeDuration));
     yield return exit.WaitForCompletion();

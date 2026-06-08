@@ -402,11 +402,19 @@ public class GameManager : MonoBehaviour
 
     uIManager.UpdatePlayerInfo();
 
-    // Free-spin trigger / retrigger gate: must run BEFORE diamond / lineWins presentation so the
-    // user sees the centered triggered animation + start panel before any wins resolve. If this
-    // is the initial trigger (isFreeSpin currently false), we also fade in the FS background/UI
-    // here, on the entry spin only.
-    if (LastSpinTriggeredFreeSpins())
+    // FS trigger / retrigger is pre-armed here (auto-spin kill, BeginSession, RegisterAward, flip
+    // isFreeSpin on entry) but the centered scatter sequence + Start panel + FS UI fade are
+    // deferred until AFTER this spin's win presentation. Otherwise the user dismisses the Start
+    // panel and only then sees the trigger spin's big-win / line / diamond animations playing on
+    // top of the already-faded-in FS background.
+    //
+    // Flipping isFreeSpin early also routes AnimateLineWins through its synced-pass-only branch
+    // (SlotController.AnimateLineWins checks isFreeSpin && spinsRemaining > 0), which is exactly
+    // what we want for the trigger spin.
+    bool fsTriggered = LastSpinTriggeredFreeSpins();
+    int awarded = 0;
+    bool fsIsEntry = false;
+    if (fsTriggered)
     {
       // Auto-spin must turn off the moment FS triggers (per spec).
       if (isAutoSpin)
@@ -416,30 +424,11 @@ public class GameManager : MonoBehaviour
         if (autoSpinRoutine != null) { StopCoroutine(autoSpinRoutine); autoSpinRoutine = null; }
       }
 
-      int awarded = LastSpinFreeSpinAward();
-      bool isEntry = !isFreeSpin;
-      if (isEntry) freeSpinController.BeginSession();
-
-      // Centered triggered sequence: third play coincides with the Start panel fade-in.
-      Coroutine startPanelIn = null;
-      yield return slotManager.PlayFreeSpinTriggeredSequence(
-        LastSpinScatterPositions(),
-        onThirdPlayStart: () =>
-        {
-          startPanelIn = StartCoroutine(freeSpinController.PlayStartPanelIn(awarded));
-        }
-      );
-      if (startPanelIn != null) yield return startPanelIn;
-      yield return freeSpinController.WaitStartPanelOk();
-
+      awarded = LastSpinFreeSpinAward();
+      fsIsEntry = !isFreeSpin;
+      if (fsIsEntry) freeSpinController.BeginSession();
       freeSpinController.RegisterAward(awarded);
-
-      if (isEntry)
-      {
-        isFreeSpin = true;
-        audioController.Play("fbg");
-        yield return freeSpinController.FadeInFreeSpinUi();
-      }
+      if (fsIsEntry) isFreeSpin = true;
     }
 
     if (socketController.ResultData.payload.winAmount > 0)
@@ -454,14 +443,16 @@ public class GameManager : MonoBehaviour
     if (diamondTrigger) uIManager.PlayDiamondPayoutRowWin(feats.diamondCount);
 
     // Matrix diamond animation:
-    //   - auto-spin: single non-looped cycle yielded in parallel with the line-wins synced pass;
-    //     the icons reset themselves on completion. If the user stops auto mid-cycle, we re-arm
-    //     the looping animation below so the trigger stays visible.
-    //   - manual / free: existing forever-loop, torn down on next StartSpin's StopIconAnimation.
+    //   - auto-spin or FS-trigger spin: single non-looped cycle yielded in parallel with the
+    //     line-wins synced pass; the icons reset themselves on completion. For FS-trigger we use
+    //     the one-shot so we can proceed to the centered scatter sequence afterward without
+    //     leaving a forever-loop running underneath it. If the user stops auto mid-cycle we
+    //     re-arm the looping animation below so the trigger stays visible.
+    //   - manual non-FS: existing forever-loop, torn down on next StartSpin's StopIconAnimation.
     Coroutine diamondCycle = null;
     if (diamondTrigger)
     {
-      if (isAutoSpin) diamondCycle = StartCoroutine(slotManager.PlayDiamondTriggeredCycle(feats.diamondPositions));
+      if (isAutoSpin || fsTriggered) diamondCycle = StartCoroutine(slotManager.PlayDiamondTriggeredCycle(feats.diamondPositions));
       else slotManager.StartDiamondTriggered(feats.diamondPositions);
     }
     else if (diamondIdle && SlotController.TryParseDiamondPos(feats.diamondPositions[0], out int idleRow, out int idleCol))
@@ -482,6 +473,31 @@ public class GameManager : MonoBehaviour
     // the matrix matches what a manual-spin trigger would have shown.
     if (diamondTrigger && !isAutoSpin && !isFreeSpin)
       slotManager.StartDiamondTriggered(feats.diamondPositions);
+
+    // FS centered scatter sequence + Start panel + FS UI fade-in run AFTER the trigger spin's
+    // win presentation has finished. Wait for the big-win animation to fully resolve first so it
+    // doesn't get covered by the centered scatters; OneSpinFlow's tail-wait then becomes a no-op.
+    if (fsTriggered)
+    {
+      yield return uIManager.WaitWinAnimDone();
+
+      Coroutine startPanelIn = null;
+      yield return slotManager.PlayFreeSpinTriggeredSequence(
+        LastSpinScatterPositions(),
+        onThirdPlayStart: () =>
+        {
+          startPanelIn = StartCoroutine(freeSpinController.PlayStartPanelIn(awarded));
+        }
+      );
+      if (startPanelIn != null) yield return startPanelIn;
+      yield return freeSpinController.WaitStartPanelOk();
+
+      if (fsIsEntry)
+      {
+        audioController.Play("fbg");
+        yield return freeSpinController.FadeInFreeSpinUi();
+      }
+    }
   }
 
   void SetAutoSpinUI(bool autoActive)
