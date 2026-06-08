@@ -4,12 +4,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using System;
-using Best.SocketIO;
-using Best.HTTP.Proxies;
-using System.Threading;
-using DG.Tweening;
-using Coffee.UISoftMask;
-using System.Linq;
+
 public class GameManager : MonoBehaviour
 {
   [Header("Scripts")]
@@ -37,15 +32,9 @@ public class GameManager : MonoBehaviour
   [SerializeField] internal bool isAutoSpin;
   [SerializeField] private float autoSpinDelay = 1.5f;
 
-  [Header("For Features")]
-  [SerializeField] internal ImageAnimation ThreeInARow;
-  [SerializeField] internal ImageAnimation FourInARow;
-  [SerializeField] internal ImageAnimation FiveInARow;
-
   private double currentBalance;
   [SerializeField] private double currentTotalBet;
   [SerializeField] internal int betCounter = 0;
-
 
   private Coroutine autoSpinRoutine;
   private int _autoSpinRemaining;
@@ -61,9 +50,6 @@ public class GameManager : MonoBehaviour
   void Start()
   {
     SetButton(SlotStart_Button, () => ExecuteSpin(), true);
-    // --- OLD (Age of Gods template): panel-driven, click was a no-op because
-    //     AutoSpinPanelController opened a count selection panel on hover/click-toggle.
-    // SetButton(AutoSpin_Button, () => { }, true);
     SetButton(AutoSpin_Button, () => StartAutoSpin(-1), true);
     SetButton(AutoSpinStop_Button, () => StartCoroutine(StopAutoSpinCoroutine()));
     SetButton(ToatlBetMinus_Button, () => { OnBetChange(false); });
@@ -104,6 +90,7 @@ public class GameManager : MonoBehaviour
       action?.Invoke();
     });
   }
+
   void InitGame()
   {
     if (!initiated)
@@ -161,26 +148,9 @@ public class GameManager : MonoBehaviour
     _autoUntilFeature = (count < 0);
     _autoSpinRemaining = count;
     isAutoSpin = true;
-    // --- OLD (Age of Gods): just hid the auto-spin button via SetActive
-    // AutoSpin_Button.gameObject.SetActive(false);
     SetAutoSpinUI(true);
     autoSpinRoutine = StartCoroutine(AutoSpinRoutine());
   }
-
-  // Called from OnSpin right after the result arrives. For auto-until-feature, flipping isAutoSpin
-  // off here (instead of after SpinRoutine returns) lets SpinRoutine's end-of-routine
-  // `if (!isAutoSpin && !isFreeSpin) ToggleButtonGrp(true)` re-enable the bottom bar — otherwise
-  // a multiplier/wild trigger ends auto-spin with buttons still disabled.
-  // TODO: reimplement against payload.freeSpins / triggeredFeatures (referenced removed field iswheeltrigger)
-  // void HandleAutoUntilFeatureCutoff()
-  // {
-  //   if (!isAutoSpin || !_autoUntilFeature) return;
-  //   var p = socketController.ResultData?.payload;
-  //   if (p == null || !p.iswheeltrigger) return;
-  //
-  //   isAutoSpin = false;
-  //   SetAutoSpinUI(false);
-  // }
 
   void ToggleTurboMode()
   {
@@ -238,10 +208,6 @@ public class GameManager : MonoBehaviour
   private IEnumerator StopAutoSpinCoroutine()
   {
     isAutoSpin = false;
-
-    // --- OLD (Age of Gods): swapped buttons via SetActive immediately
-    // AutoSpin_Button.interactable = false;
-    // AutoSpin_Button.gameObject.SetActive(true);
 
     // Lock stop button so repeat clicks no-op while the current spin finishes.
     if (AutoSpinStop_Button) AutoSpinStop_Button.interactable = false;

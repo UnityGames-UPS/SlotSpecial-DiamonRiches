@@ -15,22 +15,11 @@ public class SlotController : MonoBehaviour
 
   [Header("Sprites")]
   [SerializeField] private Sprite[] iconImages;
-  [SerializeField] private Sprite[] goldIconImages;
 
   [Header("Special Win Animations")]
   [SerializeField] private List<Sprite> wildBgAnimationSprites;
   [SerializeField] private List<Sprite> wildIconAnimationSprites;
   [SerializeField] private List<Sprite> ladyIconAnimationSprites;
-  [SerializeField] private float wildBgAnimationSpeed = 5f;
-  [SerializeField] private float wildIconAnimationSpeed = 5f;
-  [SerializeField] private float ladyIconAnimationSpeed = 5f;
-
-  internal List<Sprite> GetWildBgSprites() => wildBgAnimationSprites;
-  internal List<Sprite> GetWildIconSprites() => wildIconAnimationSprites;
-  internal List<Sprite> GetLadyIconSprites() => ladyIconAnimationSprites;
-  internal float GetWildBgSpeed() => wildBgAnimationSpeed;
-  internal float GetWildIconSpeed() => wildIconAnimationSpeed;
-  internal float GetLadyIconSpeed() => ladyIconAnimationSpeed;
 
   [Header("Slot Images")]
   [SerializeField] internal List<SlotImage> slotMatrix;
@@ -49,9 +38,7 @@ public class SlotController : MonoBehaviour
   [SerializeField] private RectTransform[] Slot_Transform;
 
   private List<Tweener> alltweens = new List<Tweener>();
-  private Tweener WinTween = null;
   [SerializeField] private List<SlotIconView> animatingIcons = new List<SlotIconView>();
-  [SerializeField] private float wildPerColumnDelay = 2f;
   [SerializeField] private float betweenLineDelay = 0.25f;
   private Coroutine WinLoopCorutine = null;
   private Coroutine scatterChainCoroutine = null;
@@ -98,13 +85,10 @@ public class SlotController : MonoBehaviour
   [SerializeField] private float freeSpinTriggeredSpeed = 5f;
   [SerializeField] private RectTransform freeSpinCenterTarget;
   [SerializeField] private float freeSpinCenterMoveDuration = 0.7f;
-  [SerializeField] private float freeSpinCenterMoveSpacing = 220f;
 
   private Coroutine extraTeaserCoroutine = null;
   private Tweener _extraReelTween = null;
   private bool _teaserActive = false;
-
-  private const int DiamondSymbolId = 7;
 
   // Free-spin (scatter) symbol id. It does not contribute to win lines; it is animated on reel
   // stop, column by column. Free spins trigger when each of the first FreeSpinTriggerColumns
@@ -154,43 +138,7 @@ public class SlotController : MonoBehaviour
         slotMatrix[j].slotImages[i].SetIcon(ID: id, image: iconImages[id]); // matrix is [row][col]; slotMatrix is column-major
       }
     }
-
-    // --- Gold-position feature (Age of Gods) — commented out for later review.
-    //     New Diamond Riches result has no goldenPositions in the payload.
-    // if (goldPositions.Count > 0)
-    // {
-    //   if (goldPositions.Count > 1)
-    //   {
-    //     audioController.Play("thunder");
-    //   }
-    //   for (int i = 0; i < goldPositions.Count; i++)
-    //   {
-    //     int id = goldPositions[i].symbolId;
-    //     for (int j = 0; j < goldPositions[i].positions.Count; j++)
-    //     {
-    //       int col = goldPositions[i].positions[j][1];
-    //       int row = goldPositions[i].positions[j][0];
-    //       slotMatrix[col].slotImages[row].SetGoldIcon(goldIconImages[id]);
-    //     }
-    //   }
-    //   ToggleDarkFG(true, false);
-    // }
   }
-
-  // internal IEnumerator HideGoldIcons()
-  // {
-  //   for (int i = 0; i < slotMatrix.Count; i++)
-  //   {
-  //     for (int j = 0; j < slotMatrix[i].slotImages.Count; j++)
-  //     {
-  //       if (slotMatrix[i].slotImages[j].isGold)
-  //         slotMatrix[i].slotImages[j].AnimateGoldIcon();
-  //     }
-  //   }
-  //
-  //   ToggleDarkFG(false, false);
-  //   yield return new WaitForSecondsRealtime(1f);
-  // }
 
   internal IEnumerator StopSpin(Action playFallAudio)
   {
@@ -912,42 +860,10 @@ public class SlotController : MonoBehaviour
       if (coros[i] != null) yield return coros[i];
   }
 
-  // internal void SetGoldenDarkActive(bool isTrue = false)
-  // {
-  //   for (int i = 0; i < slotMatrix.Count; i++)
-  //   {
-  //     for (int j = 0; j < slotMatrix[i].slotImages.Count; j++)
-  //     {
-  //       if (slotMatrix[i].slotImages[j].isGold)
-  //       {
-  //         slotMatrix[i].slotImages[j].Dark.SetActive(isTrue);
-  //         slotMatrix[i].slotImages[j].Darkest.SetActive(isTrue);
-  //       }
-  //     }
-  //   }
-  // }
-
   internal void SetDarkOverlay(bool state)
   {
     if (darkOverlay != null) darkOverlay.SetActive(state);
   }
-
-  // internal void SetWildPosOff()
-  // {
-  //   for (int i = 0; i < WildMatrix.Count; i++)
-  //   {
-  //     for (int j = 0; j < WildMatrix[i].slotImages.Count; j++)
-  //     {
-  //       WildMatrix[i].slotImages[j].StopAnimation();
-  //       WildMatrix[i].slotImages[j].gameObject.SetActive(false);
-  //     }
-  //   }
-  // }
-
-  // internal void ResetAllAnim()
-  // {
-  //   ToggleDarkFG(false, true);
-  // }
 }
 
 [Serializable]

@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 08b87109c29574396b2bcb9396c9eb93
+guid: 9b5553955e82547b1a490fa411dd9d91
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -123,89 +123,23 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Asset 159_0
+      name: White_0
       rect:
         serializedVersion: 2
-        x: 0
-        y: 731
-        width: 730
-        height: 243
+        x: 51
+        y: 51
+        width: 398
+        height: 398
       alignment: 0
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 7d16c8ec50dc041098c3dd8bd0196da5
-      internalID: -1197362146
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Asset 159_1
-      rect:
-        serializedVersion: 2
-        x: 0
-        y: 488
-        width: 730
-        height: 243
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: d8c74d40258a3442e9946db7228c7963
-      internalID: 1904642959
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Asset 159_2
-      rect:
-        serializedVersion: 2
-        x: 0
-        y: 245
-        width: 730
-        height: 243
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: d515f7386153144138de1d199eb6c32c
-      internalID: 52557321
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Asset 159_3
-      rect:
-        serializedVersion: 2
-        x: 0
-        y: 2
-        width: 730
-        height: 243
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 54ec93b9d08b84339ba12997dc2de974
-      internalID: -1803112276
+      spriteID: 4fc9d90523fc34329a8d9aadf72431ad
+      internalID: 867474292
       vertices: []
       indices: 
       edges: []
@@ -224,12 +158,9 @@ TextureImporter:
     spriteCustomMetadata:
       entries:
       - key: SpriteEditor.SliceSettings
-        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":4.0},"gridSpriteSize":{"x":730.0,"y":243.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":2,"keepEmptyRects":false,"isAlternate":false}'
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":64.0,"y":64.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":0,"keepEmptyRects":false,"isAlternate":false}'
     nameFileIdTable:
-      Asset 159_0: -1197362146
-      Asset 159_1: 1904642959
-      Asset 159_2: 52557321
-      Asset 159_3: -1803112276
+      White_0: 867474292
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
