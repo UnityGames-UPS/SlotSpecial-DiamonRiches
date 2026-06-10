@@ -369,7 +369,7 @@ public class GameManager : MonoBehaviour
 
     socketController.AccumulateResult(betCounter);
     yield return new WaitUntil(() => socketController.isResultdone);
-
+    
     slotManager.PopulateSlotMatrix(socketController.ResultData.matrix);
 
     if(turboMode)
@@ -398,8 +398,7 @@ public class GameManager : MonoBehaviour
 
   IEnumerator OnSpinEnd()
   {
-    // audioController.Stop("spin_stop");
-
+    currentBalance = socketController.ResultData.player.balance;
     uIManager.UpdatePlayerInfo();
 
     // FS trigger / retrigger is pre-armed here (auto-spin kill, BeginSession, RegisterAward, flip
