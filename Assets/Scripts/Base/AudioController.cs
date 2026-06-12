@@ -20,6 +20,7 @@ public class AudioController : MonoBehaviour
   [SerializeField] private string startupType = "bg";
 
   private readonly Dictionary<string, AudioEntry> map = new Dictionary<string, AudioEntry>();
+  private bool userMuted;
 
   private void Awake()
   {
@@ -80,6 +81,7 @@ public class AudioController : MonoBehaviour
 
   internal void SetMuteAll(bool mute)
   {
+    userMuted = mute;
     foreach (var entry in entries) entry.source.mute = mute;
   }
 
@@ -87,8 +89,7 @@ public class AudioController : MonoBehaviour
   {
     foreach (var entry in entries)
     {
-      if (focus) entry.source.mute = false;
-      else entry.source.mute = true;
+      entry.source.mute = focus ? userMuted : true;
     }
   }
 }
