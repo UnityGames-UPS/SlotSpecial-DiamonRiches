@@ -21,9 +21,11 @@ Two features to implement in the target game:
 ### What it does
 
 Detects when the browser tab/window loses or regains focus and:
-- Pauses all audio on blur/hide.
+- Suspends Unity's WebAudio context **directly in JS** on blur/hide so audio stops instantly (see note below), then also pauses all audio via the C# path.
 - Resumes audio on focus/visible.
 - Starts a background-timeout coroutine in `SocketIOManager`; if the player stays away too long, the socket is closed and a disconnect popup is shown.
+
+> **Why the JS-side suspend matters:** a hidden tab / backgrounded ReactNativeWebView throttles Unity's main loop, so muting only through `SendMessage → C# → SetMuteAll` lags ~3s (audio keeps playing). Unity's native `OnApplicationFocus` also does not fire inside a WebView. Suspending the AudioContext in the JS event handler kills sound immediately on every platform; the C# path then reasserts the correct mute state when the loop catches up.
 
 ### Step 1 — Add JS functions to `CustomJsLib.jslib`
 
@@ -34,7 +36,24 @@ RegisterVisibilityChangeListener: function(gameObjectNamePtr) {
   var gameObjectName = UTF8ToString(gameObjectNamePtr);
   console.log('[JS] RegisterVisibilityChangeListener called for GameObject:', gameObjectName);
 
+  // Suspend WebAudio directly in JS so audio stops instantly, before the
+  // throttled loop processes the C# mute. Leaves per-source .mute flags intact.
+  function setUnityAudioSuspended(suspended) {
+      try {
+          var wa = (typeof WEBAudio !== 'undefined') ? WEBAudio
+                 : (typeof Module !== 'undefined' && Module.WEBAudio) ? Module.WEBAudio
+                 : null;
+          if (!wa || !wa.audioContext) return;
+          if (suspended) {
+              if (wa.audioContext.state === 'running') wa.audioContext.suspend();
+          } else {
+              if (wa.audioContext.state === 'suspended') wa.audioContext.resume();
+          }
+      } catch (err) { console.warn('[JS] Unity audio suspend/resume failed:', err); }
+  }
+
   function sendFocusToUnity(focused) {
+      setUnityAudioSuspended(!focused);
       try {
           var value = focused ? '1' : '0';
           if (typeof SendMessage === 'function') {
