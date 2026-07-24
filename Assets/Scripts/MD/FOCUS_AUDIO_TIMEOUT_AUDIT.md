@@ -1,17 +1,19 @@
-# Focus / Visibility / Audio-Mute / Timeout / OnError — Audit Runbook
+# Focus / Visibility / Audio-Mute / Timeout / OnError / Orientation — Audit Runbook
 
 > **Who this is for:** an LLM auditing ONE of our ~70 slot games. Every game shares this
-> lifecycle logic but with different class/method names. Your job: verify each of the 5 checks
+> lifecycle logic but with different class/method names. Your job: verify each of the 8 checks
 > below against the reference contract, report **PASS / FAIL / MISSING** with a `file:line`, and
 > where it's FAIL or MISSING, paste the corrected implementation.
 >
 > The reference game is **Diamond Riches**. All reference code below is copied verbatim from it.
+> (Exception: Check 7 — Orientation change — uses **Age of Gods** as its reference, since that game
+> carries the current responsive-scaling implementation.)
 
 ---
 
 ## How to use this doc
 
-1. Read all 5 checks first so you understand how the pieces interlock (they cooperate — a
+1. Read all 8 checks first so you understand how the pieces interlock (they cooperate — a
    correct `OnFocusChanged` is useless if the visibility listener was never registered).
 2. For each check: locate the equivalent code in the target game, compare against **What to look
    for** and the **Reference implementation**, then run through **Common failure modes**.
@@ -32,12 +34,15 @@ Names vary across the 70+ games. Map by responsibility, not spelling:
 | Disconnect popup call | `DisconnectionPopup()` | `OpenDisconnectPopup()`, `ShowDisconnect()` |
 | User sound flag | `isSound` | `soundOn`, `audioEnabled` |
 | Mute-all method | `SetMuteAll(bool)` | `SetMute(bool)`, `PauseAllAudio()`/`ResumeAudio()` |
+| Orientation/scaling handler | `OrientationChange` | `ResolutionManager`, `AspectController`, `ScreenOrientationHandler` |
+| Orientation entry point | `SwitchDisplay(string)` | `OnResize(string)`, `SetOrientation(string)` |
+| WebGL template | `Assets/WebGLTemplates/custom/index.html` | `Assets/WebGLTemplates/<template>/index.html` |
 
 If a game splits mute into `PauseAllAudio()` / `ResumeAudio()` instead of a single
 `SetMuteAll(bool)`, that is acceptable **only if** resume still respects the user's sound setting
 (see Check 3's invariant).
 
-### The 5 checks at a glance
+### The 8 checks at a glance
 
 1. **Visibility listener registration** — `.jslib` + `RegisterVisibilityListener` wrapper, called from `Awake`.
 2. **`OnFocusChanged` callback** — `public`, routes to audio + socket.
@@ -45,6 +50,8 @@ If a game splits mute into `PauseAllAudio()` / `ResumeAudio()` instead of a sing
 4. **60-second background timeout** — closes the socket if the player stays away too long.
 5. **`OnError(Error err)`** — session-expired vs generic error handling.
 6. **Instant JS-side mute** — `.jslib` suspends the WebAudio context on blur so audio stops immediately.
+7. **Orientation change / responsive scaling** — `SwitchDisplay` rotates the UI and retunes the CanvasScaler match on resize.
+8. **WebGL template canvas fit** — `custom/index.html` has a clean `resizeCanvas` + resize/orientationchange listeners; template macros intact.
 
 ---
 
@@ -414,6 +421,292 @@ the gap. **No C# change is required for this check** — it is purely additive i
 
 ---
 
+## Check 7 — Orientation change / responsive scaling (`SwitchDisplay`)
+
+### What to look for
+A component (role: **Orientation/scaling handler**, `OrientationChange` in the reference) that owns
+the `RectTransform UIWrapper` + `CanvasScaler` and exposes a **`SwitchDisplay(string dimensions)`**
+entry point. The host (React Native / browser) calls it via
+`SendMessage(gameObjectName, 'SwitchDisplay', "<width>,<height>")` whenever the viewport
+rotates or resizes; the editor simulates it with the Space key. It must:
+
+1. **Debounce** the incoming call through a coroutine that waits `waitForRotation` seconds
+   (`WaitForSecondsRealtime`, so a rotation while the tab is backgrounded still resolves), stopping
+   any in-flight rotation coroutine first.
+2. **Validate** the `"w,h"` payload (`Split(',')` → exactly 2 parts, `int.TryParse`, both `> 0`).
+3. **Rotate** `UIWrapper` — `Quaternion.identity` for landscape, `Quaternion.Euler(0,0,-90)` for
+   portrait — via a DOTween tween, killing the previous rotation tween first.
+4. **Retune** `CanvasScaler.matchWidthOrHeight` by continuous interpolation between the width-scale
+   and height-scale (log-space), clamped to `[0,1]`, tweened (not snapped), killing the previous
+   match tween first. **Guard the `Log(heightScale/widthScale)` against the equal-scale case**
+   (division by zero when `widthScale == heightScale`).
+5. **Apply an initial orientation on boot** — a `Start()` (or equivalent) that calls the same
+   `ApplyMatch` path with `Screen.width/height`, so the very first frame is already correct instead
+   of waiting for the first host resize event.
+
+> **Why the continuous match matters:** the older approach hard-coded `matchWidthOrHeight` into
+> discrete aspect-ratio buckets (`>= 1.3 && < 1.4 → 0.27f`, …). Any device whose aspect fell between
+> buckets, or outside the top bucket, got a visibly wrong scale. The log-interpolated formula covers
+> every aspect ratio continuously, so no per-device tuning table is needed.
+
+### Reference implementation
+`OrientationChange.cs` (Age of Gods):
+```csharp
+private void Start()
+{
+  ApplyMatch(Screen.width, Screen.height);
+}
+
+private void SwitchDisplay(string dimensions)
+{
+  if (rotationRoutine != null) StopCoroutine(rotationRoutine);
+  rotationRoutine = StartCoroutine(RotationCoroutine(dimensions));
+}
+
+private IEnumerator RotationCoroutine(string dimensions)
+{
+  yield return new WaitForSecondsRealtime(waitForRotation);
+  string[] parts = dimensions.Split(',');
+  if (parts.Length == 2 && int.TryParse(parts[0], out int width) && int.TryParse(parts[1], out int height) && width > 0 && height > 0)
+  {
+    ApplyMatch(width, height);
+  }
+  else
+  {
+    Debug.LogWarning("Unity: Invalid format received in SwitchDisplay");
+  }
+}
+
+private void ApplyMatch(int width, int height)
+{
+  isLandscape = width > height;
+
+  Quaternion targetRotation = isLandscape ? Quaternion.identity : Quaternion.Euler(0, 0, -90);
+  if (rotationTween != null && rotationTween.IsActive()) rotationTween.Kill();
+  rotationTween = UIWrapper.DOLocalRotateQuaternion(targetRotation, transitionDuration).SetEase(Ease.OutCubic);
+
+  float refW = ReferenceAspect.x;
+  float refH = ReferenceAspect.y;
+
+  float widthScale = (float)width / refW;
+  float heightScale = (float)height / refH;
+
+  float targetScale;
+  if (isLandscape)
+  {
+    targetScale = Mathf.Min(widthScale, heightScale);
+  }
+  else
+  {
+    float portraitWidthScale = (float)height / refW;
+    float portraitHeightScale = (float)width / refH;
+    targetScale = Mathf.Min(portraitWidthScale, portraitHeightScale);
+  }
+
+  float targetMatch;
+  if (Mathf.Abs(heightScale - widthScale) < 0.0001f)
+  {
+    targetMatch = 0.5f;
+  }
+  else
+  {
+    float logRatio = Mathf.Log(heightScale / widthScale);
+    targetMatch = Mathf.Log(targetScale / widthScale) / logRatio;
+    targetMatch = Mathf.Clamp01(targetMatch);
+  }
+
+  if (matchTween != null && matchTween.IsActive()) matchTween.Kill();
+  matchTween = DOTween.To(() => CanvasScaler.matchWidthOrHeight, x => CanvasScaler.matchWidthOrHeight = x, targetMatch, transitionDuration).SetEase(Ease.InOutQuad);
+}
+```
+
+The editor simulation hook (keep it guarded):
+```csharp
+#if UNITY_EDITOR
+private void Update()
+{
+  if (Input.GetKeyDown(KeyCode.Space))
+    SwitchDisplay(Screen.width + "," + Screen.height);
+}
+#endif
+```
+
+### Common failure modes
+- `SwitchDisplay` renamed, or the component sits on a GameObject whose name differs from what the
+  host targets → `SendMessage(gameObjectName, 'SwitchDisplay', …)` silently no-ops and the game never
+  rotates. (Unity's `SendMessage` **can** reach a `private` method, so private is fine — the *name*
+  and the *GameObject* are what must match.)
+- No `Start()`/initial `ApplyMatch` → the game boots in the wrong orientation until the first resize.
+- Still using the old discrete aspect-ratio buckets instead of the continuous log formula → wrong
+  scale on aspect ratios that fall between/outside the buckets. **Replace with the formula above.**
+- Missing the `Mathf.Abs(heightScale - widthScale) < 0.0001f` guard → `Log(1)=0` denominator →
+  `NaN`/`Infinity` fed into the match tween on a square-ish viewport.
+- `WaitForSeconds` instead of `WaitForSecondsRealtime` → a rotation that arrives while the tab is
+  backgrounded (`Time.timeScale`/frame ticks paused) never resolves.
+- Previous rotation coroutine / rotation tween / match tween not stopped/killed before starting a new
+  one → overlapping tweens fight and the UI jitters or lands on a stale value during rapid rotations.
+- Match value snapped (`CanvasScaler.matchWidthOrHeight = targetMatch` directly) instead of tweened →
+  visible pop instead of a smooth transition (acceptable functionally, but off-spec).
+- No `Mathf.Clamp01` on `targetMatch` → out-of-range match value from an extreme aspect ratio.
+
+---
+
+## Check 8 — WebGL template canvas fit (`resizeCanvas` + resize/orientationchange listeners)
+
+### What to look for
+The game's WebGL template (`Assets/WebGLTemplates/<template>/index.html`, `custom` in the reference)
+must have a `resizeCanvas()` that sizes the canvas to the **visible** viewport and re-runs on resize
+and rotation. Specifically:
+
+1. A `resizeCanvas()` that reads `window.visualViewport` (the accurate visible area on iOS) with a
+   `window.innerWidth/innerHeight` fallback, and applies the size to `documentElement` / `body` /
+   the Unity canvas.
+2. It is registered — as a **function reference**, not called — on `window` `resize` and
+   `orientationchange`, plus the `visualViewport` `resize`/`scroll` block and the scroll-lock/gesture
+   handlers (`window` `scroll`, `document` `touchmove` / `gesturestart` / `gesturechange`), and run
+   once via `window.addEventListener('load', resizeCanvas)`.
+3. The Unity template macros are **intact** — `{{{ LOADER_FILENAME }}}`, `{{{ JSON.stringify(PRODUCT_NAME) }}}`,
+   etc. — and the `#if …/#endif` platform blocks sit at **column 0**.
+
+> *Note: this is an `.html` template asset, not a `.cs` file — safe to read and edit. If the template
+> doesn't exist yet, create it from the reference below.*
+
+### Reference implementation
+`Assets/WebGLTemplates/custom/index.html` (Age of Gods):
+```html
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>{{{ PRODUCT_NAME }}}</title>
+  <style>
+    body,
+    html {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100%;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: black;
+    }
+
+    #unity-canvas {
+      height: 100%;
+      width: 100%;
+    }
+
+    #loading-screen {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+
+<body>
+
+  <canvas id="unity-canvas" tabindex="-1"></canvas>
+  <script>
+    const canvas = document.querySelector("#unity-canvas");
+
+    function resizeCanvas() {
+      // visualViewport is the accurate visible area on iOS; fall back to innerWidth/Height.
+      var vv = window.visualViewport;
+      var w = Math.round(vv ? vv.width : window.innerWidth);
+      var h = Math.round(vv ? vv.height : window.innerHeight);
+      window.scrollTo(0, 0);
+      document.documentElement.style.width = w + "px";
+      document.documentElement.style.height = h + "px";
+      document.body.style.width = w + "px";
+      document.body.style.height = h + "px";
+      canvas.style.width = w + "px";
+      canvas.style.height = h + "px";
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('orientationchange', resizeCanvas);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', resizeCanvas);
+      window.visualViewport.addEventListener('scroll', function () { window.scrollTo(0, 0); });
+    }
+    // Scroll-lock: CSS touch-action alone won't stop iOS pinch-pan; non-passive touchmove does.
+    // Unity still receives the touch events (preventDefault only cancels browser scroll/zoom).
+    window.addEventListener('scroll', function () { window.scrollTo(0, 0); }, { passive: true });
+    document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+    document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+    document.addEventListener('gesturechange', function (e) { e.preventDefault(); });
+
+    var buildUrl = "Build";
+    var loaderUrl = buildUrl + "/{{{ LOADER_FILENAME }}}";
+    var config = {
+      dataUrl: buildUrl + "/{{{ DATA_FILENAME }}}",
+      frameworkUrl: buildUrl + "/{{{ FRAMEWORK_FILENAME }}}",
+#if USE_THREADS
+      workerUrl: buildUrl + "/{{{ WORKER_FILENAME }}}",
+#endif
+#if USE_WASM
+      codeUrl: buildUrl + "/{{{ CODE_FILENAME }}}",
+#endif
+#if MEMORY_FILENAME
+      memoryUrl: buildUrl + "/{{{ MEMORY_FILENAME }}}",
+#endif
+#if SYMBOLS_FILENAME
+      symbolsUrl: buildUrl + "/{{{ SYMBOLS_FILENAME }}}",
+#endif
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
+      productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
+      productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+    };
+
+
+    var script = document.createElement("script");
+    script.src = loaderUrl;
+    script.onload = () => {
+      createUnityInstance(canvas, config, (progress) => {
+      }).then((unityInstance) => {
+      }).catch((message) => {
+        alert(message);
+      });
+    };
+
+    document.body.appendChild(script);
+    window.addEventListener('load', resizeCanvas);
+  </script>
+  <script type="text/javascript">
+    console.log = function () { };
+    console.warn = function () { };
+    console.error = function () { };
+  </script>
+  <script>
+    window.focus();
+  </script>
+
+</body>
+
+</html>
+```
+
+### Common failure modes
+- **Mangled template macros** — an HTML/JS auto-formatter inserts spaces into `{{{ … }}}`, turning
+  `{{{ JSON.stringify(PRODUCT_NAME) }}}` into `{ { { JSON.stringify(PRODUCT_NAME) } } }`. Unity's
+  template substitution then fails and the build ships broken `config` values. Grep for `{ { {` — it
+  must return nothing.
+- **`load` handler called instead of registered** — `window.addEventListener('load', resizeCanvas())`
+  runs `resizeCanvas` immediately and registers its `undefined` return as the listener. Must be
+  `resizeCanvas` (a reference), not `resizeCanvas()`.
+- **Indented preprocessor** — a formatter indents the `#if`/`#endif` platform blocks. Restore them to
+  column 0 so Unity's template preprocessor sees them.
+- **`resizeCanvas` / listeners missing** — the canvas never refits after a rotation or host resize, so
+  the game renders letterboxed or clipped.
+
+---
+
 ## Verdict template (use per check)
 
 ```
@@ -434,6 +727,8 @@ Fix (if FAIL/MISSING): <adapted code block>
 | 4 | 60s background timeout (`WaitForSecondsRealtime`) | | | |
 | 5 | `OnError` (session-expired vs generic) | | | |
 | 6 | Instant JS-side mute (WebAudio suspend in `.jslib`) | | | |
+| 7 | Orientation change / responsive scaling (`SwitchDisplay` + continuous match) | | | |
+| 8 | WebGL template canvas fit (`resizeCanvas` + listeners, macros intact) | | | |
 
 ---
 
