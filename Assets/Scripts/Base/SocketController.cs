@@ -58,6 +58,7 @@ public class SocketController : MonoBehaviour
 
   void ReceiveAuthToken(string jsonData)
   {
+    Debug.Log("Unity Received Auth: " + jsonData);
     var data = JsonUtility.FromJson<AuthTokenData>(jsonData);
     SocketURI = data.socketURL;
     myAuth = data.cookie;
@@ -72,7 +73,10 @@ public class SocketController : MonoBehaviour
     options.Timeout = TimeSpan.FromSeconds(3);
     options.ConnectWith = Best.SocketIO.Transports.TransportTypes.WebSocket;
 
+    Debug.Log("Setting up socket");
+
 #if UNITY_WEBGL && !UNITY_EDITOR
+    JSManager.RegisterAuthTokenListener(gameObject.name); // listen for host's TokenReceived before asking
     JSManager.SendCustomMessage("authToken");
     StartCoroutine(WaitForAuthToken(options));
 #else
@@ -347,7 +351,7 @@ public class SocketController : MonoBehaviour
           {
             OnInit?.Invoke();
             SetInit = true;
-            
+
             PopulateSlotSocket();
           }
           else
