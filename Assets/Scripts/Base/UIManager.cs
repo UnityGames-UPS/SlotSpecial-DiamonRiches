@@ -504,7 +504,7 @@ public class UIManager : MonoBehaviour
   {
     bool focused = value == "1";
     Debug.Log("UNITY FOCUS CHANGED: " + value + " (focused: " + focused + ")");
-    audioController?.SetMuteAll(focused ? !isSound : true);
+    audioController?.SetMuteAll(!focused);
     socketController?.HandleFocusChange(focused);
   }
 

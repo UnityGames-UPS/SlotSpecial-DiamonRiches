@@ -21,6 +21,8 @@ public class AudioController : MonoBehaviour
 
   private readonly Dictionary<string, AudioEntry> map = new Dictionary<string, AudioEntry>();
   private bool userMuted;
+  private bool isForceMuted;
+  private bool preFocusUserMuted;
 
   private void Awake()
   {
@@ -79,17 +81,33 @@ public class AudioController : MonoBehaviour
     if (map.TryGetValue(type, out var entry)) entry.source.mute = mute;
   }
 
-  internal void SetMuteAll(bool mute)
+  // Focus-driven — called from BOTH UIManager.OnFocusChanged (JS) and OnApplicationFocus (native).
+  internal void SetMuteAll(bool forceMute)
+  {
+    if (forceMute == isForceMuted) return;
+    isForceMuted = forceMute;
+
+    if (forceMute)
+    {
+      preFocusUserMuted = userMuted;
+      foreach (var entry in entries) entry.source.mute = true;
+    }
+    else
+    {
+      foreach (var entry in entries) entry.source.mute = preFocusUserMuted;
+    }
+  }
+
+  // User-toggle-driven — the sound button.
+  internal void SetUserMute(bool mute)
   {
     userMuted = mute;
-    foreach (var entry in entries) entry.source.mute = mute;
+    if (!isForceMuted)
+      foreach (var entry in entries) entry.source.mute = mute;
   }
 
   private void OnApplicationFocus(bool focus)
   {
-    foreach (var entry in entries)
-    {
-      entry.source.mute = focus ? userMuted : true;
-    }
+    SetMuteAll(!focus);
   }
 }

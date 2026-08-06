@@ -30,6 +30,7 @@ public class SocketController : MonoBehaviour
   [SerializeField] private string testToken;
   internal Action OnInit;
   internal Action ShowDisconnectionPopup;
+  internal Action<double> OnBalanceSynced;
   private float pingInterval = 2f;
   private bool waitingForPong = false;
   private int missedPongs = 0;
@@ -130,6 +131,7 @@ public class SocketController : MonoBehaviour
     GameSocket.On<string>("game:init", OnListenEvent);
     GameSocket.On<string>("result", OnListenEvent);
     GameSocket.On<string>("pong", OnPongReceived);
+    GameSocket.On<string>("balance:sync", OnBalanceSync);
 
     manager.Open();
   }
@@ -184,6 +186,17 @@ public class SocketController : MonoBehaviour
   private void OnListenEvent(string data)
   {
     ParseResponse(data);
+  }
+
+  private void OnBalanceSync(string data)
+  {
+    BalanceSyncPayload syncPayload = JsonConvert.DeserializeObject<BalanceSyncPayload>(data);
+    if (syncPayload == null) return;
+
+    if (PlayerData == null) PlayerData = new Player();
+    PlayerData.balance = syncPayload.balance;
+
+    OnBalanceSynced?.Invoke(syncPayload.balance);
   }
 
   private void SendPing()
@@ -274,7 +287,7 @@ public class SocketController : MonoBehaviour
 
     if (!focus)
     {
-      focusLostTime = Time.time;
+      focusLostTime = Time.realtimeSinceStartup;
       if (focusCheckRoutine == null && !isExiting && !isBeingDestroyed)
         focusCheckRoutine = StartCoroutine(FocusTimeoutCheck());
     }
@@ -292,7 +305,7 @@ public class SocketController : MonoBehaviour
   {
     while (!hasFocus && !isExiting && !isBeingDestroyed)
     {
-      if (Time.time - focusLostTime >= maxBackgroundTime)
+      if (Time.realtimeSinceStartup - focusLostTime >= maxBackgroundTime)
       {
         Debug.LogWarning("[SOCKET] Background timeout — closing connection");
         isConnected = false;

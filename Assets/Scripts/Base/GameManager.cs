@@ -65,7 +65,8 @@ public class GameManager : MonoBehaviour
     }
 
     socketController.OnInit = InitGame;
-    uIManager.ToggleAudio = audioController.SetMuteAll;
+    socketController.OnBalanceSynced = HandleBalanceSync;
+    uIManager.ToggleAudio = audioController.SetUserMute;
     uIManager.playButtonAudio = (s) => audioController.Play(s);
     if (uIManager.winAnim != null)
     {
@@ -117,6 +118,18 @@ public class GameManager : MonoBehaviour
     }
     uIManager.RefreshDiamondPayoutTexts(currentTotalBet);
     uIManager.PopulateInfoPageDiamondPayouts();
+  }
+
+  private void HandleBalanceSync(double newBalance)
+  {
+    currentBalance = newBalance;
+    uIManager.SetPlayerBalance(newBalance);
+
+    if (currentBalance < currentTotalBet)
+    {
+      ToggleButtonGrp(false);
+      uIManager.LowBalPopup();
+    }
   }
 
   void ExecuteSpin()
